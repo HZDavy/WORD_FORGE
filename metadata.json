@@ -1,0 +1,5 @@
+{
+  "name": "词炼",
+  "description": "A high-performance, keyboard-accessible vocabulary trainer with a minimalist dark aesthetic. Features PDF parsing, flashcards, quizzes, and a round-based matching game.",
+  "requestFramePermissions": []
+}
