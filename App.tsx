@@ -1,10 +1,12 @@
+
 import React, { useState } from 'react';
 import { parsePdf } from './services/pdfProcessor';
 import { VocabularyItem, GameMode } from './types';
 import { FlashcardMode } from './components/FlashcardMode';
 import { QuizMode } from './components/QuizMode';
 import { MatchingMode } from './components/MatchingMode';
-import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame } from 'lucide-react';
+import { WordListMode } from './components/WordListMode';
+import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks } from 'lucide-react';
 
 const App = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
@@ -40,6 +42,12 @@ const App = () => {
     setMode(GameMode.MENU);
   };
 
+  const handleToggleMark = (id: string) => {
+    setVocab(prev => prev.map(item => 
+        item.id === id ? { ...item, marked: !item.marked } : item
+    ));
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -57,6 +65,7 @@ const App = () => {
     if (mode === GameMode.FLASHCARD) return <FlashcardMode data={vocab} onExit={resetGame} />;
     if (mode === GameMode.QUIZ) return <QuizMode data={vocab} onExit={resetGame} />;
     if (mode === GameMode.MATCHING) return <MatchingMode data={vocab} onExit={resetGame} />;
+    if (mode === GameMode.WORD_LIST) return <WordListMode data={vocab} onExit={resetGame} onToggleMark={handleToggleMark} />;
 
     // MENU
     return (
@@ -100,24 +109,30 @@ const App = () => {
               </label>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <MenuCard 
-                icon={<BookOpen size={32} />}
+                icon={<BookOpen size={28} />}
                 title="Flashcards" 
-                desc="Classic flip-card study" 
+                desc="Flip-card study" 
                 onClick={() => setMode(GameMode.FLASHCARD)} 
               />
               <MenuCard 
-                icon={<BrainCircuit size={32} />}
+                icon={<BrainCircuit size={28} />}
                 title="Quiz" 
-                desc="4-choice comprehension" 
+                desc="4-choice test" 
                 onClick={() => setMode(GameMode.QUIZ)} 
               />
               <MenuCard 
-                icon={<Gamepad2 size={32} />}
+                icon={<Gamepad2 size={28} />}
                 title="Matching" 
-                desc="Connect words & meanings" 
+                desc="Connect pairs" 
                 onClick={() => setMode(GameMode.MATCHING)} 
+              />
+              <MenuCard 
+                icon={<ListChecks size={28} />}
+                title="Word List" 
+                desc="View & Mark" 
+                onClick={() => setMode(GameMode.WORD_LIST)} 
               />
             </div>
           </div>
@@ -129,7 +144,7 @@ const App = () => {
   return (
     <div className="min-h-screen bg-monkey-bg text-monkey-text p-6 font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-10 border-b border-monkey-sub/20 pb-4">
+      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-6 border-b border-monkey-sub/20 pb-4">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={resetGame}>
             <Flame className="text-monkey-main group-hover:scale-110 transition-transform duration-300" size={24} />
             <span className="font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-colors">词炼</span>
@@ -139,11 +154,11 @@ const App = () => {
         </div>
       </nav>
 
-      <main className="flex-grow flex flex-col relative w-full max-w-6xl mx-auto">
+      <main className="flex-grow flex flex-col relative w-full max-w-6xl mx-auto h-[calc(100vh-160px)]">
         {renderContent()}
       </main>
 
-      <footer className="mt-12 text-center text-xs text-monkey-sub/30 pb-4">
+      <footer className="mt-4 text-center text-xs text-monkey-sub/30 pb-2">
         &copy; 2024 Word Forge. Performance Edition.
       </footer>
     </div>
@@ -153,11 +168,11 @@ const App = () => {
 const MenuCard = ({ title, desc, icon, onClick }: { title: string, desc: string, icon: React.ReactNode, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className="flex flex-col items-center text-center p-8 rounded-xl bg-[#2c2e31] border border-monkey-sub/20 hover:border-monkey-main hover:-translate-y-1 transition-all duration-300 group shadow-lg hover:shadow-monkey-main/10"
+    className="flex flex-col items-center text-center p-6 rounded-xl bg-[#2c2e31] border border-monkey-sub/20 hover:border-monkey-main hover:-translate-y-1 transition-all duration-300 group shadow-lg hover:shadow-monkey-main/10"
   >
     <div className="mb-4 text-monkey-sub group-hover:text-monkey-main transition-colors duration-300 transform group-hover:scale-110">{icon}</div>
-    <h3 className="text-xl font-bold mb-2 text-monkey-text group-hover:text-white">{title}</h3>
-    <p className="text-sm text-monkey-sub">{desc}</p>
+    <h3 className="text-lg font-bold mb-1 text-monkey-text group-hover:text-white">{title}</h3>
+    <p className="text-xs text-monkey-sub">{desc}</p>
   </button>
 );
 
