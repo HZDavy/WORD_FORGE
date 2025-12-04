@@ -1,87 +1,120 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
-import { RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
   onExit: () => void;
+  onUpdateLevel: (id: string, level: number) => void;
+  onShuffle: () => void;
+  onRestore: () => void;
 }
 
-export const FlashcardMode: React.FC<Props> = ({ data, onExit }) => {
-  const [index, setIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [knownCount, setKnownCount] = useState(0);
+export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onShuffle, onRestore }) => {
+  // Filter Logic
+  const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   
-  // Gesture State
+  const filteredData = useMemo(() => {
+    return data.filter(item => activeLevels.has(item.level));
+  }, [data, activeLevels]);
+
+  const [index, setIndex] = useState(0);
+  const [isRevealed, setIsRevealed] = useState(false);
+  
+  // Gesture State for Main Card
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null);
-  
-  // Refs
   const startX = useRef<number | null>(null);
-  
-  const currentCard = data[index];
-  const nextCard = data[index + 1]; 
-  const progress = Math.round(((index + 1) / data.length) * 100);
+
+  // Gesture State for Traffic Lights
+  const lightStartX = useRef<number | null>(null);
+
+  const currentCard = filteredData[index];
+  const nextCard = filteredData[index + 1]; 
+
+  useEffect(() => {
+      if (index >= filteredData.length && filteredData.length > 0) {
+          setIndex(0);
+      }
+  }, [filteredData.length, index]);
+
+  const toggleFilter = (level: number) => {
+      setActiveLevels(prev => {
+          const next = new Set(prev);
+          if (next.has(level)) next.delete(level);
+          else next.add(level);
+          return next.size === 0 ? prev : next;
+      });
+      setIndex(0);
+  };
+
+  // -- Grading Logic --
+  const handleLevelClick = (e: React.MouseEvent, level: number) => {
+    e.stopPropagation();
+    if (currentCard) onUpdateLevel(currentCard.id, level);
+  };
+
+  const handleLightTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    lightStartX.current = e.touches[0].clientX;
+  };
+
+  const handleLightTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (lightStartX.current === null || !currentCard) return;
+    
+    const endX = e.changedTouches[0].clientX;
+    const diff = endX - lightStartX.current;
+
+    if (Math.abs(diff) > 20) {
+        if (diff > 0) {
+            // Swipe Right -> Increment
+            onUpdateLevel(currentCard.id, Math.min(3, currentCard.level + 1));
+        } else {
+            // Swipe Left -> Decrement
+            onUpdateLevel(currentCard.id, Math.max(0, currentCard.level - 1));
+        }
+    }
+    lightStartX.current = null;
+  };
 
   // -- Navigation Logic --
 
   const handleNextData = useCallback(() => {
-    if (index < data.length - 1) {
+    if (index < filteredData.length - 1) {
       setIndex(prev => prev + 1);
-      setIsFlipped(false);
+      setIsRevealed(false);
     }
-    // Reset visual state INSTANTLY after data swap
     setDragX(0);
     setExitDirection(null);
-  }, [index, data.length]);
+  }, [index, filteredData.length]);
 
   const handlePrevData = useCallback(() => {
     if (index > 0) {
       setIndex(prev => prev - 1);
-      setIsFlipped(false);
+      setIsRevealed(false);
     }
-    // Reset visual state INSTANTLY after data swap
     setDragX(0);
     setExitDirection(null);
   }, [index]);
 
   const triggerSwipeAnimation = (direction: 'left' | 'right') => {
     setExitDirection(direction);
-    // Wait for animation to finish before swapping data
     setTimeout(() => {
         if (direction === 'left') handleNextData();
         else handlePrevData();
     }, 200); 
   };
 
-  const goNext = useCallback(() => {
-     // Button click: Instant switch
-     if (index < data.length - 1) {
-        handleNextData();
-     }
-  }, [handleNextData, index, data.length]);
-
-  const goPrev = useCallback(() => {
-     if (index > 0) {
-        handlePrevData();
-     }
-  }, [handlePrevData, index]);
-
-  const handleFlip = useCallback(() => {
-    // Only allow flip if not currently swiping/exiting
+  const toggleReveal = useCallback(() => {
     if (!isDragging && !exitDirection) {
-      setIsFlipped(prev => !prev);
+      setIsRevealed(prev => !prev);
     }
   }, [isDragging, exitDirection]);
 
-  const handleMarkKnown = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setKnownCount(prev => prev + 1);
-    goNext(); 
-  }, [goNext]);
-
-  // -- Gesture Handlers --
+  // -- Card Gesture Handlers --
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (exitDirection) return; 
@@ -103,23 +136,14 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit }) => {
     const threshold = 80; 
 
     if (dragX < -threshold) {
-      // Swipe Left -> Next
-      if (index < data.length - 1) {
-        triggerSwipeAnimation('left');
-      } else {
-        setDragX(0); // Bounce back if end of list
-      }
+      if (index < filteredData.length - 1) triggerSwipeAnimation('left');
+      else setDragX(0);
     } else if (dragX > threshold) {
-      // Swipe Right -> Prev
-      if (index > 0) {
-        triggerSwipeAnimation('right');
-      } else {
-        setDragX(0); // Bounce back if start of list
-      }
+      if (index > 0) triggerSwipeAnimation('right');
+      else setDragX(0);
     } else {
-      setDragX(0); // Snap back
+      setDragX(0);
     }
-    
     startX.current = null;
   };
 
@@ -128,128 +152,154 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit }) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault(); 
-        handleFlip();
+        toggleReveal();
       } else if (e.code === 'ArrowRight') {
-        goNext();
+        if (index < filteredData.length - 1) handleNextData();
       } else if (e.code === 'ArrowLeft') {
-        goPrev();
-      } else if (e.code === 'ArrowUp' || e.code === 'Enter') {
-        handleMarkKnown();
+        if (index > 0) handlePrevData();
       } else if (e.code === 'Escape') {
         onExit();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleFlip, goNext, goPrev, handleMarkKnown, onExit]);
+  }, [toggleReveal, handleNextData, handlePrevData, onExit, index, filteredData.length]);
 
 
-  // -- Render Helpers --
-
-  const getSwipeContainerStyle = () => {
-    if (exitDirection === 'left') {
-      return { transform: `translateX(-120vw) rotate(-20deg)`, transition: 'transform 0.2s ease-in', opacity: 0 };
-    }
-    if (exitDirection === 'right') {
-      return { transform: `translateX(120vw) rotate(20deg)`, transition: 'transform 0.2s ease-in', opacity: 0 };
-    }
-    
-    // Normal swipe state
-    const rotate = dragX * 0.05;
+  // -- Styles --
+  const getSwipeStyle = () => {
+    const rotate = dragX * 0.1; // Enhanced Rotation
+    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     return { 
-      transform: `translateX(${dragX}px) rotate(${rotate}deg)`,
+      transform: `translate3d(${dragX}px, 0, 0) rotate(${rotate}deg)`, 
       transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
-      cursor: isDragging ? 'grabbing' : 'grab',
       opacity: 1
     };
   };
 
-  const getBgCardStyle = () => {
-      if (isDragging && !exitDirection) {
-        const maxDrag = 200; 
-        const percentage = Math.min(Math.abs(dragX) / maxDrag, 1);
-        const scale = 0.95 + (0.05 * percentage);
-        const opacity = 0.5 + (0.5 * percentage);
-        const translateY = 12 - (12 * percentage);
-        return {
-            transform: `scale(${scale}) translateY(${translateY}px)`,
-            opacity: opacity,
-            transition: 'none'
-        };
-      }
-      if (exitDirection) {
-        return {
-          transform: `scale(1) translateY(0px)`,
-          opacity: 1,
-          transition: 'all 0.2s ease-in'
-        };
-      }
-      return {
-          transform: 'scale(0.95) translateY(12px)',
-          opacity: 0.5,
-          transition: 'all 0.3s ease'
-      };
-  };
+  // Background Card Dynamic Styles
+  const progress = Math.min(Math.abs(dragX) / 300, 1);
+  const bgScale = 0.95 + (progress * 0.05); // Scales from 0.95 to 1.0
+  const bgOpacity = 0.5 + (progress * 0.5); // Opacity from 0.5 to 1.0
 
-  if (!currentCard) return null;
+  if (filteredData.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+              <h2 className="text-2xl font-bold text-monkey-sub mb-4">No cards in selected levels</h2>
+              <div className="flex gap-2 justify-center">
+                  {[0,1,2,3].map(l => (
+                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#4b4d50] border-[#646669] text-gray-200' : 'bg-transparent border-monkey-sub/30 text-monkey-sub'}`}>
+                          {l}
+                      </button>
+                  ))}
+              </div>
+          </div>
+      );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-4 overflow-hidden touch-none select-none">
-      {/* Header Stats */}
-      <div className="w-full flex justify-between text-monkey-sub text-sm mb-4 font-mono">
-        <span>{index + 1} / {data.length}</span>
-        <span>已掌握: {knownCount}</span>
+      
+      {/* Top Controls: Filter & Shuffle */}
+      <div className="w-full flex justify-between items-center mb-6 z-30">
+        <div className="flex gap-2">
+            {[0, 1, 2, 3].map(level => {
+                const isActive = activeLevels.has(level);
+                return (
+                    <button 
+                        key={level} 
+                        onClick={() => toggleFilter(level)}
+                        className={`w-8 h-8 rounded border text-xs font-bold transition-colors ${isActive ? 'bg-[#4b4d50] border-[#646669] text-gray-200' : 'bg-transparent border-monkey-sub/20 text-monkey-sub/50'}`}
+                    >
+                        {level}
+                    </button>
+                )
+            })}
+        </div>
+        <div className="flex gap-2">
+            <button onClick={() => { setIndex(0); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
+            <button onClick={() => { setIndex(0); onRestore(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="w-full flex justify-between text-monkey-sub text-xs mb-2 font-mono">
+        <span>{index + 1} / {filteredData.length}</span>
       </div>
       
       {/* Progress Bar */}
       <div className="w-full h-1 bg-monkey-sub/30 rounded-full mb-8">
         <div 
           className="h-full bg-monkey-main transition-all duration-300 rounded-full" 
-          style={{ width: `${progress}%` }}
+          style={{ width: `${((index + 1) / filteredData.length) * 100}%` }}
         />
       </div>
 
-      {/* 3D Scene Container */}
-      <div className="w-full relative h-80 flex items-center justify-center perspective-1000">
+      {/* Scene */}
+      <div className="w-full relative h-96 flex items-center justify-center perspective-1000">
         
-        {/* Background Stack Card (Next Card) */}
+        {/* Background Card (Next) */}
         {nextCard && (
           <div 
-            className="absolute w-full h-full z-0 flex items-center justify-center pointer-events-none"
-            style={getBgCardStyle()}
+            className="absolute w-full h-full z-0 pointer-events-none transition-transform duration-75"
+            style={{ 
+                transform: `scale(${bgScale}) translateY(12px)`, 
+                opacity: bgOpacity 
+            }}
           >
-             <div className="w-full h-full bg-[#2c2e31] border border-monkey-sub/20 rounded-xl flex items-center justify-center p-8 shadow-2xl">
-                <h2 className="text-4xl font-bold text-monkey-main text-center opacity-50">{nextCard.word}</h2>
+             <div className="w-full h-full bg-[#2c2e31] border border-monkey-sub/20 rounded-xl flex items-center justify-center shadow-2xl">
+                <h2 className="text-4xl font-bold text-monkey-main opacity-30">{nextCard.word}</h2>
              </div>
           </div>
         )}
 
-        {/* Active Card Container (Handles Swipe X/Y) */}
+        {/* Active Card Container - Key ensures remount on index change */}
         <div 
-            className="absolute w-full h-full z-10 touch-none"
-            style={getSwipeContainerStyle()}
+            key={currentCard.id} 
+            className="absolute w-full h-full z-10 touch-none origin-bottom"
+            style={getSwipeStyle()}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            onClick={handleFlip}
         >
-            {/* Flip Container (Handles Rotate Y) */}
-            <div className={`w-full h-full relative transition-transform duration-300 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+            <div className="w-full h-full relative bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl overflow-hidden cursor-pointer group" onClick={toggleReveal}>
                 
-                {/* Front Face */}
-                <div className="absolute w-full h-full backface-hidden bg-[#2c2e31] border border-monkey-sub/20 rounded-xl flex flex-col items-center justify-center p-8 shadow-2xl">
-                    <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4">Word</span>
-                    <h2 className="text-4xl font-bold text-monkey-main text-center break-all">{currentCard.word}</h2>
-                    <p className="absolute bottom-4 text-monkey-sub/50 text-xs">Tap to Flip • Slide to Next</p>
+                {/* Traffic Light Grading (Top Left) - Independent Interaction */}
+                <div 
+                    className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30 touch-pan-x" 
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchStart={handleLightTouchStart}
+                    onTouchEnd={handleLightTouchEnd}
+                >
+                    {[1, 2, 3].map(l => (
+                         <div 
+                            key={l}
+                            onClick={(e) => handleLevelClick(e, l)}
+                            className={`w-3 h-3 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${currentCard.level >= l ? (currentCard.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                         ></div>
+                    ))}
                 </div>
 
-                {/* Back Face */}
-                <div className="absolute w-full h-full backface-hidden rotate-y-180 bg-[#2c2e31] border border-monkey-main/20 rounded-xl flex flex-col items-center justify-center p-8 shadow-2xl">
-                    <span className="text-monkey-sub text-xs uppercase tracking-widest mb-2">Definition</span>
-                    <h3 className="text-xl font-bold text-monkey-main mb-4">{currentCard.word}</h3>
-                    <div className="w-8 h-1 bg-monkey-sub/20 mb-4 rounded-full"></div>
-                    <p className="text-xl text-monkey-text text-center leading-relaxed overflow-y-auto max-h-40 scrollbar-hide">{currentCard.definition}</p>
+                {/* Content Container */}
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-8">
+                    
+                    {/* Definition Layer (Static) */}
+                     <div 
+                        className={`absolute w-full flex flex-col items-center justify-center p-8 transition-all duration-300 ${isRevealed ? 'opacity-100 translate-y-12' : 'opacity-0 translate-y-8'}`}
+                     >
+                        <div className="w-8 h-1 bg-monkey-sub/20 mb-4 rounded-full"></div>
+                        <p className="text-xl text-monkey-text text-center leading-relaxed max-h-40 overflow-y-auto">{currentCard.definition}</p>
+                    </div>
+
+                    {/* English Word Layer (Moves Up) */}
+                    <div 
+                        className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-10' : 'translate-y-0'}`}
+                    >
+                        <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4 opacity-50">Word</span>
+                        <h2 className="text-4xl font-bold text-monkey-main text-center break-all">{currentCard.word}</h2>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -258,31 +308,29 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit }) => {
       {/* Controls */}
       <div className="flex gap-6 mt-12 z-20">
         <button 
-          onClick={goPrev}
+          onClick={handlePrevData}
           disabled={index === 0}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg bg-transparent border border-monkey-sub text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
         >
           <ArrowLeft size={18} /> Prev
         </button>
 
         <button 
-          onClick={(e) => { e.stopPropagation(); handleFlip(); }}
-          className="flex items-center gap-2 px-8 py-3 rounded-lg bg-monkey-sub/20 text-monkey-text hover:bg-monkey-sub/40 transition-all active:scale-95"
+          onClick={(e) => { e.stopPropagation(); toggleReveal(); }}
+          className="flex items-center justify-center w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
         >
-          <RefreshCw size={18} /> Flip
+          <div className={`transition-transform duration-300 ${isRevealed ? 'rotate-180' : 'rotate-0'}`}>
+             <ChevronDown size={24} />
+          </div>
         </button>
 
         <button 
-          onClick={goNext}
-          disabled={index === data.length - 1}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg bg-transparent border border-monkey-sub text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
+          onClick={handleNextData}
+          disabled={index === filteredData.length - 1}
+          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
         >
           Next <ArrowRight size={18} />
         </button>
-      </div>
-
-      <div className="mt-8 text-xs text-monkey-sub/50 font-mono text-center">
-        [Swipe/Arrows] Nav • [Space] Flip • [Enter] Mark Known
       </div>
     </div>
   );

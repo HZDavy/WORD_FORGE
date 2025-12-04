@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { VocabularyItem } from '../types';
+import { Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
   onExit: () => void;
+  onShuffle: () => void;
+  onRestore: () => void;
 }
 
 interface Bubble {
-  id: string; // The vocabulary ID (to match pairs)
-  uid: string; // Unique ID for the bubble itself
+  id: string; 
+  uid: string; 
   text: string;
   type: 'word' | 'def';
   matched: boolean;
@@ -17,13 +21,18 @@ interface Bubble {
 
 const ITEMS_PER_ROUND = 6; 
 
-export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
+export const MatchingMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }) => {
   const [round, setRound] = useState(0);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isWait, setIsWait] = useState(false);
 
   const totalRounds = Math.ceil(data.length / ITEMS_PER_ROUND);
+
+  const restart = () => {
+      setRound(0);
+      setSelectedId(null);
+  };
 
   useEffect(() => {
     const start = round * ITEMS_PER_ROUND;
@@ -32,7 +41,6 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
 
     if (slice.length === 0) return;
 
-    // Word bubbles
     const wordBubbles: Bubble[] = slice.map(item => ({
       id: item.id,
       uid: item.id + '-w',
@@ -42,17 +50,11 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
       status: 'default'
     }));
 
-    // Definition bubbles
-    // FIX: Replaced .split(';')[0] with .replace() to show multiple meanings
     const defBubbles: Bubble[] = slice.map(item => {
-      // Replace semicolons with spaces for clearer layout
       let defText = item.definition.replace(/;/g, ' '); 
-      
-      // Truncate if excessively long, but allow enough length for multiple meanings
       if (defText.length > 55) {
           defText = defText.substring(0, 52) + '...';
       }
-
       return {
         id: item.id,
         uid: item.id + '-d',
@@ -90,7 +92,6 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
     if (!first) return;
 
     if (first.id === clicked.id) {
-      // MATCH
       setBubbles(prev => prev.map(b => 
         (b.uid === first.uid || b.uid === clicked.uid) 
           ? { ...b, status: 'success', matched: true } 
@@ -104,10 +105,9 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
           if (round < totalRounds - 1) {
             setRound(r => r + 1);
           }
-        }, 1000); // Wait for animation to finish
+        }, 1000); 
       }
     } else {
-      // WRONG
       setIsWait(true);
       setBubbles(prev => prev.map(b => 
         (b.uid === first.uid || b.uid === clicked.uid) 
@@ -148,25 +148,20 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center h-full pt-6">
-      <div className="flex justify-between w-full mb-6 border-b border-monkey-sub/20 pb-2 px-4">
-        <span className="text-monkey-main font-bold font-mono">Round {round + 1} / {totalRounds}</span>
-        <span className="text-monkey-sub text-sm font-mono">Select matching pairs</span>
+      <div className="flex justify-between w-full mb-6 border-b border-monkey-sub/20 pb-2 px-4 items-center">
+        <div>
+            <span className="text-monkey-main font-bold font-mono text-lg">Round {round + 1} / {totalRounds}</span>
+            <span className="text-monkey-sub text-sm font-mono ml-4 hidden sm:inline">Select matching pairs</span>
+        </div>
+        <div className="flex gap-2">
+            <button onClick={() => { restart(); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
+            <button onClick={() => { restart(); onRestore(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4 justify-center content-start flex-grow pb-10 px-4">
         {bubbles.map((b, idx) => {
-           // Keep rendered even if matched for animation duration, but disable interaction
-           // If we removed it immediately, the exit animation might be cut off or layout shifts abruptly
-           // We'll hide it via CSS after animation completes using logic if needed, but 'opacity-0' in animation handles visibility
-           if (b.matched && b.status !== 'success') return null; // Only keep render if it just succeeded (animation playing) or we handle removal differently. 
-           // ACTUALLY: The animation 'merge-success' ends with opacity: 0. 
-           // We can keep it in DOM but it will be invisible.
-           // However, layout shift? 
-           // If we want layout shift (bubbles moving to fill gap), we should remove from DOM after timeout.
-           // In handleSelect we wait 1000ms before next round, but for individual bubbles?
-           // The simplest way for grid games is to keep the gap (invisible bubble).
-           // If we want them to disappear and others to reflow, we need to remove from array.
-           // But `b.matched` is true. Let's rely on opacity-0 for now to prevent jarring reflows mid-round.
+           if (b.matched && b.status !== 'success') return null; 
            
            let baseClass = "px-5 py-4 rounded-lg border-2 cursor-pointer font-bold text-sm transition-all duration-300 select-none animate-pop-in max-w-[400px] break-words ";
            
@@ -174,7 +169,6 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
                if (b.type === 'word') {
                    baseClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] text-xl";
                } else {
-                   // Definition style: Lighter, larger text
                    baseClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] font-normal leading-relaxed";
                }
            } else if (b.status === 'selected') {
@@ -182,7 +176,6 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit }) => {
            } else if (b.status === 'wrong') {
                baseClass += "border-monkey-error bg-monkey-error text-white animate-shake";
            } else if (b.status === 'success') {
-               // Use the new merge-success animation
                baseClass += "animate-merge-success pointer-events-none z-20"; 
            }
 

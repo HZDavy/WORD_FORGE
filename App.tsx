@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { parsePdf } from './services/pdfProcessor';
 import { VocabularyItem, GameMode } from './types';
 import { FlashcardMode } from './components/FlashcardMode';
@@ -33,7 +33,6 @@ const App = () => {
       setError("Failed to parse PDF file.");
     } finally {
       setLoading(false);
-      // Reset input value to allow re-uploading same file if needed
       e.target.value = '';
     }
   };
@@ -42,11 +41,32 @@ const App = () => {
     setMode(GameMode.MENU);
   };
 
-  const handleToggleMark = (id: string) => {
+  const handleLevelUpdate = useCallback((id: string, newLevel: number) => {
     setVocab(prev => prev.map(item => 
-        item.id === id ? { ...item, marked: !item.marked } : item
+        item.id === id ? { ...item, level: Math.max(0, Math.min(3, newLevel)) } : item
     ));
-  };
+  }, []);
+
+  const handleResetLevels = useCallback(() => {
+    if (window.confirm("Are you sure you want to extinguish all lights (reset levels to 0)?")) {
+        setVocab(prev => prev.map(item => ({ ...item, level: 0 })));
+    }
+  }, []);
+
+  const handleShuffle = useCallback(() => {
+    setVocab(prev => {
+        const shuffled = [...prev];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    });
+  }, []);
+
+  const handleRestore = useCallback(() => {
+    setVocab(prev => [...prev].sort((a, b) => a.originalIndex - b.originalIndex));
+  }, []);
 
   const renderContent = () => {
     if (loading) {
@@ -62,10 +82,10 @@ const App = () => {
       );
     }
 
-    if (mode === GameMode.FLASHCARD) return <FlashcardMode data={vocab} onExit={resetGame} />;
-    if (mode === GameMode.QUIZ) return <QuizMode data={vocab} onExit={resetGame} />;
-    if (mode === GameMode.MATCHING) return <MatchingMode data={vocab} onExit={resetGame} />;
-    if (mode === GameMode.WORD_LIST) return <WordListMode data={vocab} onExit={resetGame} onToggleMark={handleToggleMark} />;
+    if (mode === GameMode.FLASHCARD) return <FlashcardMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onShuffle={handleShuffle} onRestore={handleRestore} />;
+    if (mode === GameMode.QUIZ) return <QuizMode data={vocab} onExit={resetGame} onShuffle={handleShuffle} onRestore={handleRestore} />;
+    if (mode === GameMode.MATCHING) return <MatchingMode data={vocab} onExit={resetGame} onShuffle={handleShuffle} onRestore={handleRestore} />;
+    if (mode === GameMode.WORD_LIST) return <WordListMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={handleResetLevels} onShuffle={handleShuffle} onRestore={handleRestore} />;
 
     // MENU
     return (

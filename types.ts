@@ -5,6 +5,8 @@ export interface VocabularyItem {
   definition: string;
   matched?: boolean;
   marked?: boolean;
+  level: number; // 0, 1, 2, 3
+  originalIndex: number; // To restore order
 }
 
 export enum GameMode {

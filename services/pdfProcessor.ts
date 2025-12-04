@@ -1,3 +1,4 @@
+
 import { VocabularyItem } from '../types';
 
 // We need to declare the global pdfjsLib variable since we are loading it via script tag
@@ -97,6 +98,7 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
   const lineRegex = /^\s*(?:[\u2610\u2611\uF0A3\u25A1]|\s*\[[\sxX]?\])?\s*([a-zA-Z\-]{2,})\s+(.*(?:[a-z]{1,5}\.|[a-z]+\/[a-z]+\.)\s*.*[\u4e00-\u9fa5]+.*)$/gm;
 
   let lineMatch;
+  let indexCounter = 0;
   while ((lineMatch = lineRegex.exec(processText)) !== null) {
     const rawWord = lineMatch[1].trim();
     let rawDef = lineMatch[2].trim();
@@ -117,7 +119,9 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
       vocab.push({
         id: generateId(),
         word: rawWord,
-        definition: rawDef
+        definition: rawDef,
+        level: 0,
+        originalIndex: indexCounter++
       });
     }
   }
@@ -141,7 +145,9 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
               vocab.push({
                   id: generateId(),
                   word: w,
-                  definition: d
+                  definition: d,
+                  level: 0,
+                  originalIndex: indexCounter++
               });
           }
       }

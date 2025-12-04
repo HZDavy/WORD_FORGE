@@ -1,33 +1,32 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { VocabularyItem } from '../types';
-import { CheckCircle, XCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
   onExit: () => void;
+  onShuffle: () => void;
+  onRestore: () => void;
 }
 
-export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
+export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [answeredState, setAnsweredState] = useState<{ [key: number]: number | null }>({}); // Track answer for each index
+  const [answeredState, setAnsweredState] = useState<{ [key: number]: number | null }>({}); 
   const [isAnimating, setIsAnimating] = useState(false);
   
-  // Swipe Refs
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
-  // Create a randomized subset for the quiz if data is too large, or just use all
   const quizItems = useMemo(() => data, [data]); 
   
   const currentItem = quizItems[currentIndex];
   const selectedOption = answeredState[currentIndex] ?? null;
 
-  // Generate options (memoized based on current item index so they don't reshuffle when navigating back)
   const options = useMemo(() => {
     if (!currentItem) return [];
     
-    // Seeded random-ish based on ID to keep consistency if revisiting
     const wrongOptions = data
       .filter(item => item.id !== currentItem.id)
       .sort(() => 0.5 - Math.random()) 
@@ -38,7 +37,7 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
   }, [currentItem, data, currentIndex]);
 
   const handleAnswer = useCallback((optionIndex: number) => {
-    if (selectedOption !== null || isAnimating) return; // Prevent changing answer
+    if (selectedOption !== null || isAnimating) return; 
 
     setAnsweredState(prev => ({ ...prev, [currentIndex]: optionIndex }));
     const isCorrect = options[optionIndex].id === currentItem.id;
@@ -46,7 +45,6 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
     if (isCorrect) {
       setScore(s => s + 1);
       setIsAnimating(true);
-      // Auto advance ONLY if correct
       setTimeout(() => {
         if (currentIndex < quizItems.length - 1) {
           setCurrentIndex(prev => prev + 1);
@@ -68,13 +66,25 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
       }
   }, [currentIndex]);
 
-  // Keyboard support
+  const handleShuffleClick = () => {
+      setCurrentIndex(0);
+      setAnsweredState({});
+      setScore(0);
+      onShuffle();
+  };
+  
+  const handleRestoreClick = () => {
+      setCurrentIndex(0);
+      setAnsweredState({});
+      setScore(0);
+      onRestore();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key >= '1' && e.key <= '4') {
         handleAnswer(parseInt(e.key) - 1);
       } else if (e.code === 'ArrowRight') {
-         // Only allow arrow navigation if answered or manual nav
          if (selectedOption !== null) handleNext();
       } else if (e.code === 'ArrowLeft') {
          handlePrev();
@@ -86,7 +96,6 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleAnswer, handleNext, handlePrev, onExit, selectedOption]);
 
-  // Touch Swipe Logic
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
   };
@@ -97,19 +106,9 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
 
   const handleTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
-    
     const distance = touchStartX.current - touchEndX.current;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      // Only next if answered OR forcing skip allowed. 
-      // The prompt requested manual nav support, so we allow it.
-      handleNext();
-    } else if (isRightSwipe) {
-      handlePrev();
-    }
-
+    if (distance > 50) handleNext();
+    else if (distance < -50) handlePrev();
     touchStartX.current = null;
     touchEndX.current = null;
   };
@@ -124,8 +123,13 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
       onTouchEnd={handleTouchEnd}
     >
       
-      {/* Header */}
-      <div className="w-full flex justify-between items-end border-b border-monkey-sub/20 pb-4 mb-8 select-none">
+      <div className="w-full flex justify-between items-end border-b border-monkey-sub/20 pb-4 mb-8 select-none relative">
+        {/* Controls */}
+        <div className="absolute -top-10 right-0 flex gap-2">
+             <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16} /></button>
+             <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={16} /></button>
+        </div>
+
         <div>
           <span className="text-xs text-monkey-sub uppercase block mb-1">Question</span>
           <span className="text-xl font-mono text-monkey-main">{currentIndex + 1} <span className="text-monkey-sub">/ {quizItems.length}</span></span>
@@ -136,13 +140,11 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
         </div>
       </div>
 
-      {/* Question */}
       <div className="mb-10 text-center select-none">
         <h1 className="text-5xl font-bold text-monkey-text mb-2 break-all">{currentItem.word}</h1>
         <p className="text-monkey-sub italic text-sm">选择正确的释义</p>
       </div>
 
-      {/* Options Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-8">
         {options.map((opt, idx) => {
           const isSelected = selectedOption === idx;
@@ -153,11 +155,11 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
           
           if (showResult) {
             if (isCorrect) {
-              btnClass += "border-green-500 bg-green-500/10 text-green-400"; // Correct answer always green
+              btnClass += "border-green-500 bg-green-500/10 text-green-400";
             } else if (isSelected && !isCorrect) {
-              btnClass += "border-monkey-error bg-monkey-error/10 text-monkey-error"; // Wrong selection
+              btnClass += "border-monkey-error bg-monkey-error/10 text-monkey-error";
             } else {
-              btnClass += "border-monkey-sub/10 opacity-50"; // Others
+              btnClass += "border-monkey-sub/10 opacity-50";
             }
           } else {
             btnClass += "border-monkey-sub/20 hover:border-monkey-main hover:bg-[#2c2e31] cursor-pointer";
@@ -183,7 +185,6 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
         })}
       </div>
 
-      {/* Navigation Buttons */}
       <div className="w-full flex justify-between mt-auto pb-6 z-10">
           <button 
             onClick={handlePrev} 
@@ -193,7 +194,6 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
               <ArrowLeft size={20} /> Prev
           </button>
 
-          {/* Show Finish button if done */}
           {currentIndex === quizItems.length - 1 && selectedOption !== null ? (
                <button 
                onClick={onExit} 
@@ -210,7 +210,6 @@ export const QuizMode: React.FC<Props> = ({ data, onExit }) => {
             </button>
           )}
       </div>
-
     </div>
   );
 };
