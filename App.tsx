@@ -47,10 +47,9 @@ const App = () => {
     ));
   }, []);
 
+  // Removed window.confirm here so components can handle it and update their filters
   const handleResetLevels = useCallback(() => {
-    if (window.confirm("Are you sure you want to extinguish all lights (reset levels to 0)?")) {
-        setVocab(prev => prev.map(item => ({ ...item, level: 0 })));
-    }
+    setVocab(prev => prev.map(item => ({ ...item, level: 0 })));
   }, []);
 
   const handleShuffle = useCallback(() => {

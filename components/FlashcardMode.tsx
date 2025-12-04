@@ -69,7 +69,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
 
     const currentX = e.touches[0].clientX;
     const diff = currentX - lastLightUpdateX.current;
-    const THRESHOLD = 15; // Sensitivity
+    const THRESHOLD = 10; 
 
     if (Math.abs(diff) > THRESHOLD) {
         if (diff > 0) {
@@ -182,9 +182,9 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
 
   // -- Styles --
   const getSwipeStyle = () => {
-    const rotate = dragX * 0.05; // Gentle rotation
-    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-15deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
-    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(15deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    const rotate = dragX * 0.1; // Enhanced rotation
+    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     return { 
       transform: `translate3d(${dragX}px, 0, 0) rotate(${rotate}deg)`, 
       transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -203,7 +203,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
               <h2 className="text-2xl font-bold text-monkey-sub mb-4">No cards in selected levels</h2>
               <div className="flex gap-2 justify-center">
                   {[0,1,2,3].map(l => (
-                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#4b4d50] border-[#646669] text-gray-200' : 'bg-transparent border-monkey-sub/30 text-monkey-sub'}`}>
+                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#4b4d50] text-gray-200 border-transparent' : 'bg-transparent text-gray-500'}`}>
                           {l}
                       </button>
                   ))}
@@ -224,7 +224,11 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                     <button 
                         key={level} 
                         onClick={() => toggleFilter(level)}
-                        className={`w-8 h-8 rounded border text-xs font-bold transition-colors ${isActive ? 'bg-[#4b4d50] border-[#646669] text-gray-200' : 'bg-transparent border-monkey-sub/20 text-monkey-sub/50'}`}
+                        className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-colors ${
+                            isActive 
+                                ? 'bg-[#4b4d50] text-gray-200 border border-transparent' 
+                                : 'bg-transparent text-gray-500 hover:text-gray-300'
+                        }`}
                     >
                         {level}
                     </button>
@@ -281,7 +285,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                 
                 {/* Traffic Light Grading (Top Left) - Independent Interaction */}
                 <div 
-                    className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30 touch-pan-x" 
+                    className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30 touch-none" 
                     onClick={(e) => e.stopPropagation()}
                     onTouchStart={handleLightTouchStart}
                     onTouchMove={handleLightTouchMove}

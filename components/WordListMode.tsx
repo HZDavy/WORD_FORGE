@@ -36,6 +36,17 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     });
   };
 
+  const handleResetClick = () => {
+      // Use setTimeout to allow the UI to register the click before blocking with confirm
+      setTimeout(() => {
+          if (window.confirm("确定要熄灭所有指示灯吗？所有单词将重置为等级 0。")) {
+              onResetLevels();
+              // Force show Level 0 and others so the list doesn't appear empty
+              setActiveLevels(new Set([0, 1, 2, 3])); 
+          }
+      }, 50);
+  };
+
   const toggleAll = () => {
     setIsBulkToggling(true);
     setShowAllDefs(!showAllDefs);
@@ -71,7 +82,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       if (lastLightUpdateX.current === null) return;
       const currentX = e.touches[0].clientX;
       const diff = currentX - lastLightUpdateX.current;
-      const THRESHOLD = 15;
+      const THRESHOLD = 10; // High sensitivity
 
       if (Math.abs(diff) > THRESHOLD) {
           if (diff > 0) {
@@ -119,7 +130,11 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                     <button 
                         key={level} 
                         onClick={() => toggleFilter(level)}
-                        className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold border transition-colors ${activeLevels.has(level) ? 'bg-[#4b4d50] border-[#646669] text-gray-200' : 'bg-transparent border-monkey-sub/20 text-monkey-sub/50'}`}
+                        className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-colors ${
+                            activeLevels.has(level) 
+                                ? 'bg-[#4b4d50] text-gray-200 border border-transparent'  // Active: Lighter grey than BG, readable white-ish text
+                                : 'bg-transparent text-gray-500 hover:text-gray-300'       // Inactive: Readable grey text (not too dark)
+                        }`}
                     >
                         {level}
                     </button>
@@ -134,7 +149,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             <div className="w-px h-6 bg-monkey-sub/20 mx-1"></div>
             
             <button 
-                onClick={(e) => { e.stopPropagation(); onResetLevels(); }} 
+                onClick={(e) => { e.stopPropagation(); handleResetClick(); }} 
                 className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-error transition-colors" 
                 title="Extinguish All Lights"
             >
@@ -170,7 +185,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                     <React.Fragment key={item.id}>
                         {/* Traffic Lights Column (Swipeable) */}
                         <div 
-                            className="py-3 border-b border-monkey-sub/10 flex justify-center gap-1 touch-pan-y"
+                            className="py-3 border-b border-monkey-sub/10 flex justify-center gap-1 touch-none"
                             onTouchStart={handleLightSwipeStart}
                             onTouchMove={(e) => handleLightSwipeMove(e, item)}
                             onTouchEnd={handleLightSwipeEnd}
