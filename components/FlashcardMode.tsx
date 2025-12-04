@@ -339,7 +339,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
           className="flex items-center justify-center w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
         >
           <div className={`transition-transform duration-300 ${isRevealed ? 'rotate-180' : 'rotate-0'}`}>
-             {isRevealed ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+             {isRevealed ? <ChevronUp size={24} /> : <ChevronUp size={24} />}
           </div>
         </button>
 
