@@ -1,8 +1,10 @@
 
+
 import { VocabularyItem } from '../types';
 
 // We need to declare the global pdfjsLib variable since we are loading it via script tag
 declare const pdfjsLib: any;
+declare const mammoth: any;
 
 export const parsePdf = async (file: File): Promise<VocabularyItem[]> => {
   const arrayBuffer = await file.arrayBuffer();
@@ -29,20 +31,52 @@ export const parsePdf = async (file: File): Promise<VocabularyItem[]> => {
   return extractVocabulary(fullText);
 };
 
-// Helper: Reconstructs text based on X/Y coordinates to fix fragmentation
+export const parseTxt = async (file: File): Promise<VocabularyItem[]> => {
+  const text = await file.text();
+  return extractVocabulary(text);
+};
+
+export const parseDocx = async (file: File): Promise<VocabularyItem[]> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  const text = result.value;
+  return extractVocabulary(text);
+};
+
+// Helper: Reconstructs text based on X/Y coordinates with improved filtering
 const reconstructPageText = (content: any): string => {
-  const items = content.items;
+  let items = content.items;
   if (!items || items.length === 0) return '';
 
+  // 1. FILTERING HEADERS / FOOTERS / NOISE
+  const ys = items.map((i: any) => i.transform[5]);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const pageHeight = maxY - minY;
+  const HEADER_FOOTER_THRESHOLD = pageHeight * 0.05; // Top/Bottom 5%
+
+  items = items.filter((item: any) => {
+    const str = item.str.trim();
+    if (!str) return false;
+    
+    const y = item.transform[5];
+    const isTop = y > maxY - HEADER_FOOTER_THRESHOLD;
+    const isBottom = y < minY + HEADER_FOOTER_THRESHOLD;
+    
+    // Filter purely numeric items (Page numbers) or isolated single chars at edges
+    // But preserve punctuation or brackets if they appear there
+    if ((isTop || isBottom) && /^(\d+|Page\s*\d+|[a-z])$/i.test(str)) {
+        return false;
+    }
+    return true;
+  });
+
+  // 2. GROUP BY ROWS
   const Y_TOLERANCE = 4; // Pixels difference to be considered same line
   const rows: { y: number, items: any[] }[] = [];
 
   for (const item of items) {
-    // item.transform is [scaleX, skewY, skewX, scaleY, x, y]
-    // We care about y (index 5) and x (index 4)
     const y = item.transform[5]; 
-    
-    // Find a row that is close enough in Y
     let row = rows.find(r => Math.abs(r.y - y) < Y_TOLERANCE);
     if (!row) {
       row = { y, items: [] };
@@ -51,15 +85,15 @@ const reconstructPageText = (content: any): string => {
     row.items.push(item);
   }
 
-  // Sort rows from Top to Bottom (Higher Y is higher on page)
+  // Sort rows from Top to Bottom
   rows.sort((a, b) => b.y - a.y);
 
+  // 3. MERGE ROWS
   let reconstructedPage = '';
   for (const row of rows) {
     // Sort items Left to Right
     row.items.sort((a, b) => a.transform[4] - b.transform[4]);
     
-    // Join items intelligently to avoid splitting Chinese characters
     let rowText = '';
     for (let i = 0; i < row.items.length; i++) {
         const current = row.items[i];
@@ -68,25 +102,27 @@ const reconstructPageText = (content: any): string => {
         rowText += current.str;
         
         if (next) {
-            // Check gap between items
-            // If current ends with Chinese and next starts with Chinese, join without space
-            const isChinese = (str: string) => /[\u4e00-\u9fa5]/.test(str);
-            const currentEndChinese = isChinese(current.str.slice(-1));
-            const nextStartChinese = isChinese(next.str.charAt(0));
+            // Font size estimate (scaleX)
+            const fontSize = current.transform[0] || 10;
+            // Width estimate if missing
+            const currentWidth = current.width || (current.str.length * fontSize * 0.5);
             
-            // Calculate visual gap (approx)
-            const gap = next.transform[4] - (current.transform[4] + current.width); // This width property might be missing in some PDF.js versions on raw items, but we rely on simple check first.
-            
-            // Heuristic: If both are Chinese, don't add space. 
-            // If they are English, add space unless it's a hyphen break (not handling hyphen breaks for now).
-            if (currentEndChinese && nextStartChinese) {
-                // No space
-            } else {
-                // Add space for English or Mixed
-                rowText += ' ';
+            const endX = current.transform[4] + currentWidth;
+            const startX = next.transform[4];
+            const gap = startX - endX;
+
+            // Use 0.2 * fontSize to ensure English words and Parts of Speech are separated.
+            if (gap > fontSize * 0.2) {
+                 rowText += ' ';
             }
         }
     }
+
+    // Filter rows that are likely just floating page numbers or noise anywhere on the page
+    if (/^\s*(\d+|page\s*\d+)\s*$/i.test(rowText)) {
+        continue;
+    }
+
     reconstructedPage += rowText + '\n';
   }
 
@@ -97,43 +133,32 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
   const vocab: VocabularyItem[] = [];
   const uniqueKeys = new Set<string>();
   
-  // Words to ignore if they accidentally get parsed
-  const stopWords = ['page', 'list', 'unit', 'story', 'section', 'part', 'vocabulary', 'word', 'audio', 'track', 'story'];
+  // Words to ignore
+  const stopWords = ['page', 'list', 'unit', 'story', 'section', 'part', 'vocabulary', 'word', 'audio', 'track', 'story', 'chapter'];
 
-  // 1. SKIP STORY SECTION (Optimized for Story 15)
-  // Story 15 has "List 15" in the title on Page 1. The actual list is on Page 4.
-  // We should look for the *LAST* occurrence of a List/Unit marker, or a specific "词汇表" marker.
-  
+  // 1. SKIP STORY SECTION 
   const markerRegex = /(?:List|Unit|Chapter)\s*\d+|Vocabulary|词汇表|Word\s*List/gi;
   const markers = [...text.matchAll(markerRegex)];
   
   let startIndex = 0;
-  
   if (markers.length > 0) {
-      // Priority 1: Look for explicit "词汇表" or "Vocabulary" headers
-      const explicitHeader = markers.find(m => m[0].includes('词汇表') || m[0].toLowerCase().includes('vocabulary'));
+      // Find the LAST "List/Vocabulary" marker to skip introductory story text if present.
+      const explicitHeader = [...markers].reverse().find(m => 
+          m[0].includes('词汇表') || 
+          m[0].toLowerCase().includes('vocabulary') || 
+          m[0].toLowerCase().includes('list')
+      );
       
       if (explicitHeader && explicitHeader.index !== undefined) {
-          startIndex = explicitHeader.index;
-      } else {
-          // Priority 2: Use the LAST "List X" marker found.
-          // This handles "Story 15 (List 15)" title appearing before the actual "List 15" header.
-          const lastMarker = markers[markers.length - 1];
-          if (lastMarker.index !== undefined) {
-              startIndex = lastMarker.index;
-          }
+          startIndex = explicitHeader.index + explicitHeader[0].length; 
       }
-      console.log(`Starting parse from index ${startIndex}`);
   }
 
   const processText = text.substring(startIndex);
 
   // 2. PARSING REGEX
-  // Matches: [Start of Line] [Optional Checkbox] [Word] [Space] [POS] [Definition]
-  // Story 15 Note: "overturn v./n. 打翻 推翻 颠倒" -> No brackets around POS, spaces between Chinese.
-  // We use ^ anchor to avoid matching words inside sentences (e.g. "municipal (a. ...)")
-  
-  const lineRegex = /^\s*(?:[\u2610\u2611\uF0A3\u25A1]|\s*\[[\sxX]?\]|\s*[oO])?\s*([a-zA-Z\-]{2,})\s+((?:[a-z]+\.|[a-z]+\/[a-z]+\.)(?:[\s\w\;\,\.\(\)\[\]\/\~\>\<\-]*[\u4e00-\u9fa5]+.*))$/gm;
+  // Matches lines starting with optional bullets, then a word (2+ letters), then a definition containing Chinese.
+  const lineRegex = /^\s*(?:[\u2610\u2611\uF0A3\u25A1\u25CF#\-\*]|\s*\[[\sxX]?\]|\s*[oO]|\d+\.)?\s*([a-zA-Z\-]{2,})\s+((?:[a-z]{1,4}\.|[a-z]+\/[a-z]+\.)?.*[\u4e00-\u9fa5].*)$/gm;
 
   let lineMatch;
   let indexCounter = 0;
@@ -144,15 +169,12 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
 
     const lowerWord = rawWord.toLowerCase();
     
-    // Filter out common false positives or stop words
     if (stopWords.includes(lowerWord)) continue;
-    if (lowerWord.length < 2) continue;
+    if (lowerWord.length < 2 || /^\d+$/.test(lowerWord)) continue;
 
-    // Normalize Definition
     const cleanDef = normalizeDefinition(rawDef);
     
-    // Duplication check
-    if (!uniqueKeys.has(lowerWord)) {
+    if (!uniqueKeys.has(lowerWord) && cleanDef.length > 0) {
       uniqueKeys.add(lowerWord);
       vocab.push({
         id: generateId(),
@@ -164,11 +186,10 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
     }
   }
   
-  // Fallback: If strict parsing failed (fewer than 5 words), try a looser stream approach
+  // Fallback: Stream parsing if strict mode fails (vocab length < 5)
   if (vocab.length < 5) {
-      console.log("Strict parsing failed. Trying fallback stream parsing.");
-      // Looser regex that doesn't require start-of-line
-      const streamRegex = /([a-zA-Z\-]{2,})\s+((?:[a-z]{1,5}\.|[a-z]+\/[a-z]+\.)\s*[\u4e00-\u9fa5\s\w\;\,\.\(\)\[\]]+)/g;
+      console.log("Strict parsing yielded few results. Trying fallback stream parsing.");
+      const streamRegex = /([a-zA-Z\-]{2,})\s+((?:[a-z]{1,5}\.|[a-z]+\/[a-z]+\.)?\s*[^a-zA-Z\n]*[\u4e00-\u9fa5][^\n]*)/g;
       
       let streamMatch;
       while ((streamMatch = streamRegex.exec(processText)) !== null) {
@@ -176,8 +197,7 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
           const dRaw = streamMatch[2].trim();
           
           if (stopWords.includes(w.toLowerCase())) continue;
-          if (!dRaw.match(/[\u4e00-\u9fa5]/)) continue; // Must contain Chinese
-
+          
           if (!uniqueKeys.has(w.toLowerCase())) {
               uniqueKeys.add(w.toLowerCase());
               vocab.push({
@@ -195,20 +215,36 @@ const extractVocabulary = (text: string): VocabularyItem[] => {
 };
 
 // Helper: Normalize definition string
-// 1. Collapse multiple spaces
-// 2. Fix space-separated Chinese words (common in Story 15: "打翻 推翻" -> "打翻; 推翻")
-// 3. Remove trailing numbers (page numbers)
 const normalizeDefinition = (def: string): string => {
-    let clean = def.replace(/\s+/g, ' ');
+    // 1. Unicode Normalization (NFC preserves fullwidth punctuation like '（' and '，')
+    let clean = def.normalize('NFC');
+
+    // 2. Collapse multiple spaces to single space
+    clean = clean.replace(/\s+/g, ' ');
+
+    // Define Unicode Ranges for CJK and Fullwidth/CJK Punctuation
+    // CJK Unified: 4e00-9fa5
+    // Kangxi Radicals: 2f00-2fd5 (OCR sometimes outputs these)
+    // CJK Radicals Supplement: 2e80-2eff
+    // Fullwidth ASCII: ff00-ffef (includes （ ） ， etc.)
+    // CJK Symbols/Punctuation: 3000-303f
     
-    // Replace space between two Chinese characters with a semicolon if they seem like separate words
-    // Heuristic: If we have ChineseChar + Space + ChineseChar, it's likely a list.
-    clean = clean.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '$1; $2');
+    const cjkChars = '\\u4e00-\\u9fa5\\u2f00-\\u2fd5\\u2e80-\\u2eff';
+    const symbolChars = '\\u3000-\\u303f\\uff00-\\uffef';
     
-    // Remove trailing numbers (like page numbers "15", "4") that often get attached to the last word on a page
+    const broadCjk = `[${cjkChars}${symbolChars}]`;
+
+    // 3. Remove spaces between CJK/Symbol characters (fix PDF reconstruction gaps)
+    // Example: "市 （ 立" -> "市（立"
+    // We strictly only merge if BOTH sides are CJK or Fullwidth Symbol. 
+    // We do NOT merge ASCII to CJK to avoid merging English words with Chinese definitions improperly.
+    const spaceGapRegex = new RegExp(`(${broadCjk})\\s+(?=${broadCjk})`, 'g');
+    clean = clean.replace(spaceGapRegex, '$1');
+
+    // 4. Remove trailing isolated numbers (page numbers that might have attached to end of line)
     clean = clean.replace(/\s+\d+$/, '');
 
-    return clean;
+    return clean.trim();
 };
 
 function generateId() {

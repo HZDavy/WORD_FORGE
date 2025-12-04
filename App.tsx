@@ -1,6 +1,7 @@
 
+
 import React, { useState, useCallback } from 'react';
-import { parsePdf } from './services/pdfProcessor';
+import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
 import { VocabularyItem, GameMode } from './types';
 import { FlashcardMode } from './components/FlashcardMode';
 import { QuizMode } from './components/QuizMode';
@@ -21,16 +22,33 @@ const App = () => {
     setLoading(true);
     setError(null);
     try {
-      const extracted = await parsePdf(file);
+      let extracted: VocabularyItem[] = [];
+      
+      const fileType = file.type;
+      const fileName = file.name.toLowerCase();
+
+      if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+        extracted = await parsePdf(file);
+      } else if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
+        extracted = await parseTxt(file);
+      } else if (
+        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+        fileName.endsWith('.docx')
+      ) {
+        extracted = await parseDocx(file);
+      } else {
+        throw new Error("Unsupported file type. Please upload a PDF, DOCX, or TXT file.");
+      }
+
       if (extracted.length < 5) {
-        setError("Extract failed: Found fewer than 5 words. Please check PDF format.");
+        setError("Extract failed: Found fewer than 5 words. Please check file format.");
         setVocab([]);
       } else {
         setVocab(extracted);
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to parse PDF file.");
+      setError("Failed to parse file.");
     } finally {
       setLoading(false);
       e.target.value = '';
@@ -104,9 +122,9 @@ const App = () => {
           <div className="w-full max-w-xl p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31] group">
             <label className="flex flex-col items-center cursor-pointer">
               <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
-              <span className="text-xl font-bold text-monkey-text mb-2">Upload PDF</span>
-              <span className="text-sm text-monkey-sub text-center">Supported: English Vocabulary Lists with Chinese</span>
-              <input type="file" className="hidden" accept="application/pdf" onChange={handleFileUpload} />
+              <span className="text-xl font-bold text-monkey-text mb-2">Upload File</span>
+              <span className="text-sm text-monkey-sub text-center">Supported: PDF, DOCX, TXT</span>
+              <input type="file" className="hidden" accept=".pdf,.txt,.docx" onChange={handleFileUpload} />
             </label>
             {error && (
               <div className="mt-6 flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-3 rounded text-sm animate-shake">
@@ -124,7 +142,7 @@ const App = () => {
               <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors">
                 <FileUp size={12} />
                 Replace File
-                <input type="file" className="hidden" accept="application/pdf" onChange={handleFileUpload} />
+                <input type="file" className="hidden" accept=".pdf,.txt,.docx" onChange={handleFileUpload} />
               </label>
             </div>
             
