@@ -178,7 +178,7 @@ const App = () => {
       </main>
 
       <footer className="mt-4 text-center text-xs text-monkey-sub/30 pb-2">
-        &copy; 2024 Word Forge. Performance Edition.
+        &copy; 2026 Word Forge. Performance Edition.
       </footer>
     </div>
   );

@@ -119,10 +119,10 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col h-full pt-4 relative">
       
-      {/* Custom Confirmation Modal */}
+      {/* Custom Confirmation Modal - Fixed Full Screen */}
       {showResetConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-lg">
-          <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl shadow-2xl max-w-sm w-full animate-pop-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl shadow-2xl max-w-sm w-full animate-pop-in mx-4">
             <div className="flex items-center gap-3 text-monkey-error mb-4">
               <AlertTriangle size={24} />
               <h3 className="text-xl font-bold">Extinguish All?</h3>

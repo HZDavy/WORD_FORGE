@@ -213,7 +213,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-4 overflow-hidden touch-none select-none">
+    <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-4 touch-none select-none">
       
       {/* Top Controls: Filter & Shuffle */}
       <div className="w-full flex justify-between items-center mb-6 z-30">
@@ -305,7 +305,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                     
                     {/* Definition Layer (Static, Fades In, Moves Down) */}
                      <div 
-                        className={`absolute flex flex-col items-center justify-center w-full px-6 transition-all duration-300 transform mt-4 ${isRevealed ? 'opacity-100 translate-y-12' : 'opacity-0 translate-y-16'}`}
+                        className={`absolute flex flex-col items-center justify-center w-full px-6 transition-all duration-300 transform mt-5 ${isRevealed ? 'opacity-100 translate-y-8' : 'opacity-0 translate-y-12'}`}
                      >
                         <div className="w-8 h-1 bg-monkey-sub/20 mb-3 rounded-full"></div>
                         <p className="text-xl text-gray-200 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
@@ -338,9 +338,8 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
           onClick={(e) => { e.stopPropagation(); toggleReveal(); }}
           className="flex items-center justify-center w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
         >
-          <div className={`transition-transform duration-300 ${isRevealed ? 'rotate-180' : 'rotate-0'}`}>
-             {isRevealed ? <ChevronUp size={24} /> : <ChevronUp size={24} />}
-          </div>
+          {/* Explicit Icons: Arrow Up implies "Slide Up/Open", Arrow Down implies "Slide Down/Close" */}
+          {isRevealed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
         </button>
 
         <button 
