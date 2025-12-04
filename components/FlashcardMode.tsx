@@ -1,8 +1,6 @@
-
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
-import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
+import { ChevronUp, ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -339,7 +337,10 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
           onClick={(e) => { e.stopPropagation(); toggleReveal(); }}
           className="flex items-center justify-center w-20 md:w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
         >
-          {isRevealed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+          <ChevronUp 
+            size={24} 
+            className={`transition-transform duration-300 ${isRevealed ? 'rotate-180' : ''}`} 
+          />
         </button>
 
         <button 
