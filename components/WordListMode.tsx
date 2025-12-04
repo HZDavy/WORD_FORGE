@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { VocabularyItem } from '../types';
 import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle } from 'lucide-react';
@@ -192,48 +193,58 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
             <button 
                 onClick={toggleAll}
-                className="flex items-center gap-2 px-4 py-2 rounded bg-[#2c2e31] border border-monkey-sub/30 hover:border-monkey-main text-monkey-text transition-colors text-sm font-mono active:scale-95"
+                className="flex items-center gap-2 px-3 py-2 md:px-4 rounded bg-[#2c2e31] border border-monkey-sub/30 hover:border-monkey-main text-monkey-text transition-colors text-xs md:text-sm font-mono active:scale-95"
             >
                 {showAllDefs ? <EyeOff size={16}/> : <Eye size={16}/>}
-                {showAllDefs ? 'Hide All' : 'Reveal All'}
+                <span className="hidden sm:inline">{showAllDefs ? 'Hide All' : 'Reveal All'}</span>
+                <span className="sm:hidden">{showAllDefs ? 'Hide' : 'Reveal'}</span>
             </button>
-            <button onClick={onExit} className="ml-4 text-monkey-sub hover:text-monkey-text text-sm underline">Exit</button>
+            <button onClick={onExit} className="ml-2 md:ml-4 text-monkey-sub hover:text-monkey-text text-sm underline">Exit</button>
         </div>
       </div>
 
       {/* List */}
       <div className="flex-grow overflow-y-auto pb-20 pr-2 custom-scrollbar relative">
-        <div className="grid grid-cols-[auto_1fr_2fr] gap-x-6 gap-y-2 items-center">
-            {/* Table Header */}
-            <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider mb-2 text-center">Lvl</div>
-            <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider mb-2">Word</div>
-            <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider mb-2">Definition</div>
+        <div className="flex flex-col gap-4 md:gap-0 md:block">
+            {/* Table Header (Desktop Only) */}
+            <div className="hidden md:grid grid-cols-[60px_1fr_2fr] gap-x-6 gap-y-2 items-center mb-2 pb-2 border-b border-monkey-sub/20">
+                <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider text-center">Lvl</div>
+                <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider">Word</div>
+                <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider">Definition</div>
+            </div>
 
             {/* Rows */}
             {filteredData.map((item, idx) => {
                 const isDefVisible = showAllDefs || visibleDefs.has(item.id);
 
                 return (
-                    <React.Fragment key={item.id}>
+                    <div 
+                        key={item.id} 
+                        className="flex flex-col p-4 bg-[#2c2e31] rounded-lg border border-monkey-sub/10 md:bg-transparent md:border-0 md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b md:border-monkey-sub/10"
+                    >
                         {/* Traffic Lights Column (Swipeable) */}
                         <div 
-                            className="py-3 border-b border-monkey-sub/10 flex justify-center gap-1 touch-none cursor-ew-resize"
+                            className="flex justify-between items-center mb-2 md:mb-0 md:justify-center gap-1 touch-none cursor-ew-resize md:py-3"
                             onTouchStart={handleLightSwipeStart}
                             onTouchMove={(e) => handleLightSwipeMove(e, item)}
                             onTouchEnd={handleLightSwipeEnd}
                         >
-                             {[1, 2, 3].map(l => (
-                                 <div 
-                                    key={l}
-                                    onClick={(e) => handleLevelClick(e, item.id, item.level === l ? l - 1 : l)}
-                                    className={`w-2 h-2 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
-                                 ></div>
-                             ))}
+                            {/* Mobile Label */}
+                            <span className="text-xs text-monkey-sub font-bold uppercase md:hidden">Level</span>
+                             <div className="flex gap-1">
+                                {[1, 2, 3].map(l => (
+                                    <div 
+                                        key={l}
+                                        onClick={(e) => handleLevelClick(e, item.id, item.level === l ? l - 1 : l)}
+                                        className={`w-3 h-3 md:w-2 md:h-2 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                                    ></div>
+                                ))}
+                             </div>
                         </div>
 
                         {/* Word Column (Click to Cycle) */}
                         <div 
-                            className="py-3 border-b border-monkey-sub/10 font-bold text-lg text-monkey-text select-text cursor-pointer hover:text-white transition-colors"
+                            className="text-xl md:text-lg font-bold text-monkey-text select-text cursor-pointer hover:text-white transition-colors mb-2 md:mb-0 md:py-3"
                             onClick={() => handleWordCycle(item)}
                         >
                             {item.word}
@@ -241,7 +252,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
                         {/* Definition Column (Redacted) */}
                         <div 
-                            className="py-3 border-b border-monkey-sub/10 cursor-pointer relative group leading-relaxed"
+                            className="cursor-pointer relative group leading-relaxed md:py-3 min-h-[1.5em]"
                             onClick={() => toggleIndividual(item.id)}
                         >
                             <span 
@@ -260,7 +271,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                                 {item.definition}
                             </span>
                         </div>
-                    </React.Fragment>
+                    </div>
                 );
             })}
         </div>

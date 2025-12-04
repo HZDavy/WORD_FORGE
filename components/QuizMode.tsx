@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { VocabularyItem } from '../types';
 import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw } from 'lucide-react';
@@ -117,15 +118,15 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
 
   return (
     <div 
-      className="w-full max-w-2xl mx-auto flex flex-col items-center h-full pt-10 px-4"
+      className="w-full max-w-2xl mx-auto flex flex-col items-center h-full pt-4 md:pt-10 px-2 md:px-4"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       
-      <div className="w-full flex justify-between items-end border-b border-monkey-sub/20 pb-4 mb-8 select-none relative">
+      <div className="w-full flex justify-between items-end border-b border-monkey-sub/20 pb-2 md:pb-4 mb-4 md:mb-8 select-none relative">
         {/* Controls */}
-        <div className="absolute -top-10 right-0 flex gap-2">
+        <div className="absolute -top-8 right-0 flex gap-2">
              <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16} /></button>
              <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={16} /></button>
         </div>
@@ -140,18 +141,18 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
         </div>
       </div>
 
-      <div className="mb-10 text-center select-none">
-        <h1 className="text-5xl font-bold text-monkey-text mb-2 break-all">{currentItem.word}</h1>
+      <div className="mb-6 md:mb-10 text-center select-none flex-grow flex flex-col justify-center">
+        <h1 className="text-3xl md:text-5xl font-bold text-monkey-text mb-2 break-words">{currentItem.word}</h1>
         <p className="text-monkey-sub italic text-sm">选择正确的释义</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-8">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 w-full mb-8">
         {options.map((opt, idx) => {
           const isSelected = selectedOption === idx;
           const isCorrect = opt.id === currentItem.id;
           const showResult = selectedOption !== null;
 
-          let btnClass = "relative p-6 rounded-lg text-left border-2 transition-all duration-200 group ";
+          let btnClass = "relative p-4 md:p-6 rounded-lg text-left border-2 transition-all duration-200 group ";
           
           if (showResult) {
             if (isCorrect) {
@@ -162,7 +163,7 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
               btnClass += "border-monkey-sub/10 opacity-50";
             }
           } else {
-            btnClass += "border-monkey-sub/20 hover:border-monkey-main hover:bg-[#2c2e31] cursor-pointer";
+            btnClass += "border-monkey-sub/20 hover:border-monkey-main hover:bg-[#2c2e31] cursor-pointer active:scale-[0.99]";
           }
 
           return (
@@ -173,11 +174,11 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
               className={btnClass}
             >
               <div className="flex items-start justify-between">
-                <span className="text-lg leading-snug">{opt.definition}</span>
-                {showResult && isCorrect && <CheckCircle className="text-green-500 shrink-0 ml-2" />}
-                {showResult && isSelected && !isCorrect && <XCircle className="text-monkey-error shrink-0 ml-2" />}
+                <span className="text-base md:text-lg leading-snug pr-4">{opt.definition}</span>
+                {showResult && isCorrect && <CheckCircle className="text-green-500 shrink-0 ml-2" size={20} />}
+                {showResult && isSelected && !isCorrect && <XCircle className="text-monkey-error shrink-0 ml-2" size={20} />}
               </div>
-              <span className={`absolute top-2 right-3 text-xs font-mono font-bold opacity-0 group-hover:opacity-100 ${showResult ? 'hidden' : ''} text-monkey-sub`}>
+              <span className={`absolute top-2 right-3 text-xs font-mono font-bold opacity-0 group-hover:opacity-100 ${showResult ? 'hidden' : ''} text-monkey-sub hidden md:block`}>
                 {idx + 1}
               </span>
             </button>
@@ -189,9 +190,9 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
           <button 
             onClick={handlePrev} 
             disabled={currentIndex === 0}
-            className="flex items-center gap-2 px-6 py-3 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
+            className="flex items-center gap-2 px-4 py-3 md:px-6 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
           >
-              <ArrowLeft size={20} /> Prev
+              <ArrowLeft size={20} /> <span className="hidden md:inline">Prev</span>
           </button>
 
           {currentIndex === quizItems.length - 1 && selectedOption !== null ? (
@@ -204,9 +205,9 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
           ) : (
             <button 
                 onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-3 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
+                className="flex items-center gap-2 px-4 py-3 md:px-6 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
             >
-                Next <ArrowRight size={20} />
+                <span className="hidden md:inline">Next</span> <ArrowRight size={20} />
             </button>
           )}
       </div>

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
 import { ChevronUp, ChevronDown, ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
@@ -213,11 +214,11 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-4 touch-none select-none">
+    <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-2 md:px-4 touch-none select-none py-2 md:py-6">
       
       {/* Top Controls: Filter & Shuffle */}
-      <div className="w-full flex justify-between items-center mb-6 z-30">
-        <div className="flex gap-2">
+      <div className="w-full flex justify-between items-center mb-4 z-30">
+        <div className="flex gap-1 md:gap-2">
             {[0, 1, 2, 3].map(level => {
                 const isActive = activeLevels.has(level);
                 return (
@@ -247,7 +248,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
       </div>
       
       {/* Progress Bar */}
-      <div className="w-full h-1 bg-monkey-sub/30 rounded-full mb-8">
+      <div className="w-full h-1 bg-monkey-sub/30 rounded-full mb-6">
         <div 
           className="h-full bg-monkey-main transition-all duration-300 rounded-full" 
           style={{ width: `${((index + 1) / filteredData.length) * 100}%` }}
@@ -255,7 +256,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
       </div>
 
       {/* Scene */}
-      <div className="w-full relative h-96 flex items-center justify-center perspective-1000">
+      <div className="w-full relative flex-grow min-h-[40vh] md:h-96 md:flex-grow-0 flex items-center justify-center perspective-1000">
         
         {/* Background Card (Next) */}
         {nextCard && (
@@ -267,7 +268,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
             }}
           >
              <div className="w-full h-full bg-[#2c2e31] border border-monkey-sub/20 rounded-xl flex items-center justify-center shadow-2xl">
-                <h2 className="text-4xl font-bold text-monkey-main opacity-30">{nextCard.word}</h2>
+                <h2 className="text-3xl md:text-4xl font-bold text-monkey-main opacity-30 px-4 text-center">{nextCard.word}</h2>
              </div>
           </div>
         )}
@@ -301,22 +302,22 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                 </div>
 
                 {/* Content Container */}
-                <div className="relative w-full h-full flex flex-col items-center justify-center p-8 text-center">
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 md:p-8 text-center">
                     
                     {/* Definition Layer (Static, Fades In, Moves Down) */}
                      <div 
-                        className={`absolute flex flex-col items-center justify-center w-full px-6 transition-all duration-300 transform mt-5 ${isRevealed ? 'opacity-100 translate-y-8' : 'opacity-0 translate-y-12'}`}
+                        className={`absolute flex flex-col items-center justify-center w-full px-2 md:px-6 transition-all duration-300 transform mt-5 ${isRevealed ? 'opacity-100 translate-y-8 md:translate-y-12' : 'opacity-0 translate-y-12'}`}
                      >
                         <div className="w-8 h-1 bg-monkey-sub/20 mb-3 rounded-full"></div>
-                        <p className="text-xl text-gray-200 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
+                        <p className="text-lg md:text-xl text-gray-200 leading-relaxed max-h-[40vh] md:max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
                     </div>
 
                     {/* English Word Layer (Slides Up) */}
                     <div 
-                        className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-6' : 'translate-y-0'}`}
+                        className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-12 md:-translate-y-16' : 'translate-y-0'}`}
                     >
                         <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4 opacity-50">Word</span>
-                        <h2 className="text-4xl font-bold text-monkey-main break-all">{currentCard.word}</h2>
+                        <h2 className="text-3xl md:text-5xl font-bold text-monkey-main break-words max-w-full">{currentCard.word}</h2>
                     </div>
 
                 </div>
@@ -325,29 +326,28 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
       </div>
 
       {/* Controls */}
-      <div className="flex gap-6 mt-12 z-20">
+      <div className="flex gap-4 md:gap-6 mt-6 md:mt-12 z-20 w-full justify-center">
         <button 
           onClick={handlePrevData}
           disabled={index === 0}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub/20 text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-3 md:px-6 rounded-lg border border-monkey-sub/20 text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
         >
-          <ArrowLeft size={18} /> Prev
+          <ArrowLeft size={18} /> <span className="hidden md:inline">Prev</span>
         </button>
 
         <button 
           onClick={(e) => { e.stopPropagation(); toggleReveal(); }}
-          className="flex items-center justify-center w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
+          className="flex items-center justify-center w-20 md:w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
         >
-          {/* Explicit Icons: Arrow Up implies "Slide Up/Open", Arrow Down implies "Slide Down/Close" */}
           {isRevealed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
         </button>
 
         <button 
           onClick={handleNextData}
           disabled={index === filteredData.length - 1}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub/20 text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-3 md:px-6 rounded-lg border border-monkey-sub/20 text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
         >
-          Next <ArrowRight size={18} />
+          <span className="hidden md:inline">Next</span> <ArrowRight size={18} />
         </button>
       </div>
     </div>

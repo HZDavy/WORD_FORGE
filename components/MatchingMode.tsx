@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { VocabularyItem } from '../types';
 import { Shuffle, RotateCcw } from 'lucide-react';
@@ -159,24 +160,24 @@ export const MatchingMode: React.FC<Props> = ({ data, onExit, onShuffle, onResto
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 justify-center content-start flex-grow pb-10 px-4">
+      <div className="flex flex-wrap gap-2 md:gap-4 justify-center content-start flex-grow pb-10 px-2 md:px-4 overflow-y-auto">
         {bubbles.map((b, idx) => {
            if (b.matched && b.status !== 'success') return null; 
            
-           let baseClass = "px-5 py-4 rounded-lg border-2 cursor-pointer font-bold text-sm transition-all duration-300 select-none animate-pop-in max-w-[400px] break-words ";
+           let baseClass = "px-3 py-3 md:px-5 md:py-4 rounded-lg border-2 cursor-pointer font-bold transition-all duration-300 select-none animate-pop-in max-w-full md:max-w-[400px] break-words ";
            
            if (b.status === 'default') {
                if (b.type === 'word') {
-                   baseClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] text-xl";
+                   baseClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] text-base md:text-xl";
                } else {
-                   baseClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] font-normal leading-relaxed";
+                   baseClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] text-sm md:text-base font-normal leading-relaxed";
                }
            } else if (b.status === 'selected') {
-               baseClass += "border-monkey-main bg-monkey-main text-monkey-bg scale-105 shadow-lg z-10";
+               baseClass += "border-monkey-main bg-monkey-main text-monkey-bg scale-105 shadow-lg z-10 text-sm md:text-base";
            } else if (b.status === 'wrong') {
-               baseClass += "border-monkey-error bg-monkey-error text-white animate-shake";
+               baseClass += "border-monkey-error bg-monkey-error text-white animate-shake text-sm md:text-base";
            } else if (b.status === 'success') {
-               baseClass += "animate-merge-success pointer-events-none z-20"; 
+               baseClass += "animate-merge-success pointer-events-none z-20 text-sm md:text-base"; 
            }
 
            return (
