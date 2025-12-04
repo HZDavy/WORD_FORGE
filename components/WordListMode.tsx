@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { VocabularyItem } from '../types';
-import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff } from 'lucide-react';
+import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -16,6 +16,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   const [showAllDefs, setShowAllDefs] = useState(false);
   const [visibleDefs, setVisibleDefs] = useState<Set<string>>(new Set());
   const [isBulkToggling, setIsBulkToggling] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
@@ -37,14 +38,15 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   };
 
   const handleResetClick = () => {
-      // Use setTimeout to allow the UI to register the click before blocking with confirm
-      setTimeout(() => {
-          if (window.confirm("确定要熄灭所有指示灯吗？所有单词将重置为等级 0。")) {
-              onResetLevels();
-              // Force show Level 0 and others so the list doesn't appear empty
-              setActiveLevels(new Set([0, 1, 2, 3])); 
-          }
-      }, 50);
+      setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+      // 1. Reset global data
+      onResetLevels();
+      // 2. Force filter to include Level 0 immediately so the list doesn't appear empty
+      setActiveLevels(new Set([0, 1, 2, 3]));
+      setShowResetConfirm(false);
   };
 
   const toggleAll = () => {
@@ -82,7 +84,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       if (lastLightUpdateX.current === null) return;
       const currentX = e.touches[0].clientX;
       const diff = currentX - lastLightUpdateX.current;
-      const THRESHOLD = 10; // High sensitivity
+      const THRESHOLD = 10; 
 
       if (Math.abs(diff) > THRESHOLD) {
           if (diff > 0) {
@@ -115,7 +117,37 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   }, [onExit]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col h-full pt-4">
+    <div className="w-full max-w-4xl mx-auto flex flex-col h-full pt-4 relative">
+      
+      {/* Custom Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-lg">
+          <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl shadow-2xl max-w-sm w-full animate-pop-in">
+            <div className="flex items-center gap-3 text-monkey-error mb-4">
+              <AlertTriangle size={24} />
+              <h3 className="text-xl font-bold">Extinguish All?</h3>
+            </div>
+            <p className="text-monkey-sub mb-6">
+              This will reset the grading level of ALL {data.length} words to 0. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 rounded text-monkey-sub hover:text-monkey-text hover:bg-monkey-sub/10 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmReset}
+                className="px-4 py-2 rounded bg-monkey-error text-white hover:bg-red-600 transition-colors font-bold"
+              >
+                Extinguish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header / Toolbar */}
       <div className="flex flex-col gap-4 mb-4 border-b border-monkey-sub/20 bg-monkey-bg sticky top-0 z-20 py-2">
         
@@ -130,10 +162,10 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                     <button 
                         key={level} 
                         onClick={() => toggleFilter(level)}
-                        className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-colors ${
+                        className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all ${
                             activeLevels.has(level) 
-                                ? 'bg-[#4b4d50] text-gray-200 border border-transparent'  // Active: Lighter grey than BG, readable white-ish text
-                                : 'bg-transparent text-gray-500 hover:text-gray-300'       // Inactive: Readable grey text (not too dark)
+                                ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50 shadow-md' 
+                                : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
                         }`}
                     >
                         {level}
@@ -151,7 +183,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             <button 
                 onClick={(e) => { e.stopPropagation(); handleResetClick(); }} 
                 className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-error transition-colors" 
-                title="Extinguish All Lights"
+                title="Extinguish All Lights (Reset to Level 0)"
             >
                 <LightbulbOff size={16}/>
             </button>
@@ -185,7 +217,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                     <React.Fragment key={item.id}>
                         {/* Traffic Lights Column (Swipeable) */}
                         <div 
-                            className="py-3 border-b border-monkey-sub/10 flex justify-center gap-1 touch-none"
+                            className="py-3 border-b border-monkey-sub/10 flex justify-center gap-1 touch-none cursor-ew-resize"
                             onTouchStart={handleLightSwipeStart}
                             onTouchMove={(e) => handleLightSwipeMove(e, item)}
                             onTouchEnd={handleLightSwipeEnd}
@@ -216,7 +248,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                               className={`
                                 rounded px-1
                                 ${isDefVisible 
-                                  ? 'bg-transparent text-monkey-sub' 
+                                  ? 'bg-transparent text-gray-200' 
                                   : 'bg-[#3f4145] text-transparent select-none hover:bg-[#4a4c50] box-decoration-clone' 
                                 }
                               `}

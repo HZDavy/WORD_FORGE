@@ -203,7 +203,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
               <h2 className="text-2xl font-bold text-monkey-sub mb-4">No cards in selected levels</h2>
               <div className="flex gap-2 justify-center">
                   {[0,1,2,3].map(l => (
-                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#4b4d50] text-gray-200 border-transparent' : 'bg-transparent text-gray-500'}`}>
+                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#3e4044] text-gray-200 border-monkey-sub/50' : 'bg-transparent text-monkey-sub border-monkey-sub/20'}`}>
                           {l}
                       </button>
                   ))}
@@ -224,10 +224,10 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                     <button 
                         key={level} 
                         onClick={() => toggleFilter(level)}
-                        className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-colors ${
+                        className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all ${
                             isActive 
-                                ? 'bg-[#4b4d50] text-gray-200 border border-transparent' 
-                                : 'bg-transparent text-gray-500 hover:text-gray-300'
+                                ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50 shadow-md' 
+                                : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
                         }`}
                     >
                         {level}
@@ -272,7 +272,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
           </div>
         )}
 
-        {/* Active Card Container - Key ensures remount on index change */}
+        {/* Active Card Container */}
         <div 
             key={currentCard.id} 
             className="absolute w-full h-full z-10 touch-none origin-bottom"
@@ -283,7 +283,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
         >
             <div className="w-full h-full relative bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl overflow-hidden cursor-pointer group" onClick={toggleReveal}>
                 
-                {/* Traffic Light Grading (Top Left) - Independent Interaction */}
+                {/* Traffic Light Grading (Top Left) */}
                 <div 
                     className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30 touch-none" 
                     onClick={(e) => e.stopPropagation()}
@@ -303,12 +303,12 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                 {/* Content Container */}
                 <div className="relative w-full h-full flex flex-col items-center justify-center p-8 text-center">
                     
-                    {/* Definition Layer (Static, Fades In) */}
+                    {/* Definition Layer (Static, Fades In, Moves Down) */}
                      <div 
-                        className={`absolute flex flex-col items-center justify-center w-full px-6 transition-all duration-300 transform ${isRevealed ? 'opacity-100 translate-y-8' : 'opacity-0 translate-y-12'}`}
+                        className={`absolute flex flex-col items-center justify-center w-full px-6 transition-all duration-300 transform mt-4 ${isRevealed ? 'opacity-100 translate-y-12' : 'opacity-0 translate-y-16'}`}
                      >
                         <div className="w-8 h-1 bg-monkey-sub/20 mb-3 rounded-full"></div>
-                        <p className="text-xl text-monkey-text leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
+                        <p className="text-xl text-gray-200 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
                     </div>
 
                     {/* English Word Layer (Slides Up) */}
