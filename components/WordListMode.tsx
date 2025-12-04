@@ -20,6 +20,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   const lightSwipeStartX = useRef<number | null>(null);
+  const lastLightUpdateX = useRef<number | null>(null);
 
   const filteredData = useMemo(() => {
     return data.filter(item => activeLevels.has(item.level));
@@ -63,21 +64,35 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
   const handleLightSwipeStart = (e: React.TouchEvent) => {
       lightSwipeStartX.current = e.touches[0].clientX;
+      lastLightUpdateX.current = e.touches[0].clientX;
   };
 
-  const handleLightSwipeEnd = (e: React.TouchEvent, item: VocabularyItem) => {
-      if (lightSwipeStartX.current === null) return;
-      const endX = e.changedTouches[0].clientX;
-      const diff = endX - lightSwipeStartX.current;
-      
-      if (Math.abs(diff) > 20) {
+  const handleLightSwipeMove = (e: React.TouchEvent, item: VocabularyItem) => {
+      if (lastLightUpdateX.current === null) return;
+      const currentX = e.touches[0].clientX;
+      const diff = currentX - lastLightUpdateX.current;
+      const THRESHOLD = 15;
+
+      if (Math.abs(diff) > THRESHOLD) {
           if (diff > 0) {
-              onUpdateLevel(item.id, Math.min(3, item.level + 1));
+              // Right
+              if (item.level < 3) {
+                  onUpdateLevel(item.id, item.level + 1);
+                  lastLightUpdateX.current = currentX;
+              }
           } else {
-              onUpdateLevel(item.id, Math.max(0, item.level - 1));
+              // Left
+              if (item.level > 0) {
+                  onUpdateLevel(item.id, item.level - 1);
+                  lastLightUpdateX.current = currentX;
+              }
           }
       }
+  };
+
+  const handleLightSwipeEnd = () => {
       lightSwipeStartX.current = null;
+      lastLightUpdateX.current = null;
   };
 
   useEffect(() => {
@@ -118,7 +133,13 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             
             <div className="w-px h-6 bg-monkey-sub/20 mx-1"></div>
             
-            <button onClick={onResetLevels} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-error transition-colors" title="Extinguish All Lights"><LightbulbOff size={16}/></button>
+            <button 
+                onClick={(e) => { e.stopPropagation(); onResetLevels(); }} 
+                className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-error transition-colors" 
+                title="Extinguish All Lights"
+            >
+                <LightbulbOff size={16}/>
+            </button>
 
             <div className="flex-grow"></div>
 
@@ -151,7 +172,8 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                         <div 
                             className="py-3 border-b border-monkey-sub/10 flex justify-center gap-1 touch-pan-y"
                             onTouchStart={handleLightSwipeStart}
-                            onTouchEnd={(e) => handleLightSwipeEnd(e, item)}
+                            onTouchMove={(e) => handleLightSwipeMove(e, item)}
+                            onTouchEnd={handleLightSwipeEnd}
                         >
                              {[1, 2, 3].map(l => (
                                  <div 

@@ -30,6 +30,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
 
   // Gesture State for Traffic Lights
   const lightStartX = useRef<number | null>(null);
+  const lastLightUpdateX = useRef<number | null>(null);
 
   const currentCard = filteredData[index];
   const nextCard = filteredData[index + 1]; 
@@ -59,26 +60,39 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   const handleLightTouchStart = (e: React.TouchEvent) => {
     e.stopPropagation();
     lightStartX.current = e.touches[0].clientX;
+    lastLightUpdateX.current = e.touches[0].clientX;
+  };
+
+  const handleLightTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (lastLightUpdateX.current === null || !currentCard) return;
+
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - lastLightUpdateX.current;
+    const THRESHOLD = 15; // Sensitivity
+
+    if (Math.abs(diff) > THRESHOLD) {
+        if (diff > 0) {
+            // Moved Right
+            if (currentCard.level < 3) {
+                onUpdateLevel(currentCard.id, currentCard.level + 1);
+                lastLightUpdateX.current = currentX; // Reset anchor
+            }
+        } else {
+            // Moved Left
+            if (currentCard.level > 0) {
+                onUpdateLevel(currentCard.id, currentCard.level - 1);
+                lastLightUpdateX.current = currentX; // Reset anchor
+            }
+        }
+    }
   };
 
   const handleLightTouchEnd = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    if (lightStartX.current === null || !currentCard) return;
-    
-    const endX = e.changedTouches[0].clientX;
-    const diff = endX - lightStartX.current;
-
-    if (Math.abs(diff) > 20) {
-        if (diff > 0) {
-            // Swipe Right -> Increment
-            onUpdateLevel(currentCard.id, Math.min(3, currentCard.level + 1));
-        } else {
-            // Swipe Left -> Decrement
-            onUpdateLevel(currentCard.id, Math.max(0, currentCard.level - 1));
-        }
-    }
-    lightStartX.current = null;
-  };
+      e.stopPropagation();
+      lightStartX.current = null;
+      lastLightUpdateX.current = null;
+  }
 
   // -- Navigation Logic --
 
@@ -168,9 +182,9 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
 
   // -- Styles --
   const getSwipeStyle = () => {
-    const rotate = dragX * 0.1; // Enhanced Rotation
-    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
-    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    const rotate = dragX * 0.05; // Gentle rotation
+    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-15deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(15deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     return { 
       transform: `translate3d(${dragX}px, 0, 0) rotate(${rotate}deg)`, 
       transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -270,6 +284,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                     className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30 touch-pan-x" 
                     onClick={(e) => e.stopPropagation()}
                     onTouchStart={handleLightTouchStart}
+                    onTouchMove={handleLightTouchMove}
                     onTouchEnd={handleLightTouchEnd}
                 >
                     {[1, 2, 3].map(l => (
@@ -282,22 +297,22 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                 </div>
 
                 {/* Content Container */}
-                <div className="relative w-full h-full flex flex-col items-center justify-center p-8">
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-8 text-center">
                     
-                    {/* Definition Layer (Static) */}
+                    {/* Definition Layer (Static, Fades In) */}
                      <div 
-                        className={`absolute w-full flex flex-col items-center justify-center p-8 transition-all duration-300 ${isRevealed ? 'opacity-100 translate-y-12' : 'opacity-0 translate-y-8'}`}
+                        className={`absolute flex flex-col items-center justify-center w-full px-6 transition-all duration-300 transform ${isRevealed ? 'opacity-100 translate-y-8' : 'opacity-0 translate-y-12'}`}
                      >
-                        <div className="w-8 h-1 bg-monkey-sub/20 mb-4 rounded-full"></div>
-                        <p className="text-xl text-monkey-text text-center leading-relaxed max-h-40 overflow-y-auto">{currentCard.definition}</p>
+                        <div className="w-8 h-1 bg-monkey-sub/20 mb-3 rounded-full"></div>
+                        <p className="text-xl text-monkey-text leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
                     </div>
 
-                    {/* English Word Layer (Moves Up) */}
+                    {/* English Word Layer (Slides Up) */}
                     <div 
-                        className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-10' : 'translate-y-0'}`}
+                        className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-6' : 'translate-y-0'}`}
                     >
                         <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4 opacity-50">Word</span>
-                        <h2 className="text-4xl font-bold text-monkey-main text-center break-all">{currentCard.word}</h2>
+                        <h2 className="text-4xl font-bold text-monkey-main break-all">{currentCard.word}</h2>
                     </div>
 
                 </div>
@@ -310,7 +325,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
         <button 
           onClick={handlePrevData}
           disabled={index === 0}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub/20 text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
         >
           <ArrowLeft size={18} /> Prev
         </button>
@@ -320,14 +335,14 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
           className="flex items-center justify-center w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
         >
           <div className={`transition-transform duration-300 ${isRevealed ? 'rotate-180' : 'rotate-0'}`}>
-             <ChevronDown size={24} />
+             {isRevealed ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
           </div>
         </button>
 
         <button 
           onClick={handleNextData}
           disabled={index === filteredData.length - 1}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 rounded-lg border border-monkey-sub/20 text-monkey-sub hover:text-monkey-text hover:border-monkey-text disabled:opacity-30 transition-all active:scale-95"
         >
           Next <ArrowRight size={18} />
         </button>
