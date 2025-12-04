@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback } from 'react';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
 import { VocabularyItem, GameMode } from './types';
@@ -65,7 +63,7 @@ const App = () => {
     ));
   }, []);
 
-  const handleResetLevels = useCallback(() => {
+  const handleResetLevels = useCallback((id: string, newLevel: number) => {
     setVocab(prev => prev.map(item => ({ ...item, level: 0 })));
   }, []);
 
@@ -87,7 +85,7 @@ const App = () => {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="flex flex-col items-center justify-center h-64 animate-pulse">
+        <div className="flex flex-col items-center justify-center h-full animate-pulse">
            <div className="relative">
              <div className="w-16 h-16 border-4 border-monkey-sub/30 rounded-full"></div>
              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-monkey-main border-t-transparent rounded-full animate-spin"></div>
@@ -101,13 +99,13 @@ const App = () => {
     if (mode === GameMode.FLASHCARD) return <FlashcardMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onShuffle={handleShuffle} onRestore={handleRestore} />;
     if (mode === GameMode.QUIZ) return <QuizMode data={vocab} onExit={resetGame} onShuffle={handleShuffle} onRestore={handleRestore} />;
     if (mode === GameMode.MATCHING) return <MatchingMode data={vocab} onExit={resetGame} onShuffle={handleShuffle} onRestore={handleRestore} />;
-    if (mode === GameMode.WORD_LIST) return <WordListMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={handleResetLevels} onShuffle={handleShuffle} onRestore={handleRestore} />;
+    if (mode === GameMode.WORD_LIST) return <WordListMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} />;
 
     // MENU
     return (
-      <div className="flex flex-col items-center w-full max-w-4xl mx-auto animate-fade-in-up px-4 md:px-0">
+      <div className="flex flex-col items-center w-full max-w-4xl mx-auto animate-fade-in-up px-4 md:px-0 h-full overflow-y-auto custom-scrollbar">
         {/* Stats / Welcome */}
-        <div className="text-center mb-8 md:mb-12 relative mt-4 md:mt-0">
+        <div className="text-center mb-8 md:mb-12 relative mt-4 md:mt-0 flex-shrink-0">
            <div className="absolute -top-6 md:-top-10 left-1/2 -translate-x-1/2 opacity-10 pointer-events-none">
              <Flame className="w-24 h-24 md:w-32 md:h-32" />
            </div>
@@ -118,7 +116,7 @@ const App = () => {
         </div>
 
         {vocab.length === 0 ? (
-          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31] group">
+          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31] group flex-shrink-0">
             <label className="flex flex-col items-center cursor-pointer">
               <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
               <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload File</span>
@@ -132,7 +130,7 @@ const App = () => {
             )}
           </div>
         ) : (
-          <div className="w-full">
+          <div className="w-full flex-shrink-0 pb-10">
             <div className="flex justify-between items-center mb-6 px-4 border-b border-monkey-sub/10 pb-2">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -179,9 +177,9 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-monkey-bg text-monkey-text p-4 md:p-6 font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-monkey-bg text-monkey-text p-4 md:p-6 font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4">
+      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4 flex-shrink-0">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={resetGame}>
             <Flame className="text-monkey-main group-hover:scale-110 transition-transform duration-300" size={24} />
             <span className="font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-colors">词炼</span>
@@ -194,12 +192,12 @@ const App = () => {
         </div>
       </nav>
 
-      {/* Main Content Area using Dynamic Viewport Height for mobile browsers */}
-      <main className="flex-grow flex flex-col relative w-full max-w-6xl mx-auto h-[calc(100dvh-140px)] md:h-[calc(100vh-160px)]">
+      {/* Main Content Area using Flexbox for proper internal scrolling */}
+      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto relative flex flex-col">
         {renderContent()}
       </main>
 
-      <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-2 pt-2 md:pt-0">
+      <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-2 pt-2 md:pt-0 flex-shrink-0">
         &copy; 2026 Word Forge. Performance Edition.
       </footer>
     </div>
