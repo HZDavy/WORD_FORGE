@@ -191,7 +191,7 @@ export const TimerWidget: React.FC = () => {
     // If delta is large (fast spin), we treat each tick as a Minute
     // If delta is small (slow spin), we treat each tick as a Second
     const rotationSpeed = Math.abs(delta);
-    const isFastSpin = rotationSpeed > 10; // Threshold for "Fast" (degrees per event)
+    const isFastSpin = rotationSpeed > 2; // Threshold for "Fast" (degrees per event) - Reduced to 2 for easier trigger
     
     const TICK_THRESHOLD = 5; // Degrees per tick
 
@@ -366,9 +366,9 @@ export const TimerWidget: React.FC = () => {
                           cx="400" cy="0" r="340" 
                           fill="none" 
                           stroke="#e2b714" 
-                          strokeWidth="3" 
+                          strokeWidth="5" 
                           strokeLinecap="round"
-                          strokeDasharray="0 15" 
+                          strokeDasharray="0 20" 
                           opacity="0.5" 
                         />
                     </g>
