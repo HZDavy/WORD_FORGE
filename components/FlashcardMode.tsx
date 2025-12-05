@@ -146,7 +146,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
     if (startX.current === null || exitDirection) return;
     
     setIsDragging(false);
-    const threshold = 80; 
+    const threshold = 50; 
 
     if (dragX < -threshold) {
       if (index < filteredData.length - 1) triggerSwipeAnimation('left');
@@ -181,7 +181,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
 
   // -- Styles --
   const getSwipeStyle = () => {
-    const rotate = dragX * 0.1; // Enhanced rotation
+    const rotate = dragX * 0.2; // Enhanced rotation
     if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     return { 
