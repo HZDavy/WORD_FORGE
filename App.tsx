@@ -272,7 +272,7 @@ const App = () => {
       </nav>
 
       {/* Main Content Area using Flexbox for proper internal scrolling */}
-      <main className={`flex-1 min-h-0 w-full max-w-6xl mx-auto relative flex flex-col ${mode === GameMode.MENU ? '' : 'px-0'}`}>
+      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto relative flex flex-col px-4 md:px-6">
         {renderContent()}
       </main>
 
