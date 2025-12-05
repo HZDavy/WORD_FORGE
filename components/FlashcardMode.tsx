@@ -26,6 +26,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   const [isDragging, setIsDragging] = useState(false);
   const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null);
   const startX = useRef<number | null>(null);
+  const isSwipeGesture = useRef(false); // Tracks if the current interaction was a swipe
 
   // Gesture State for Traffic Lights
   const lightStartX = useRef<number | null>(null);
@@ -122,42 +123,66 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   };
 
   const toggleReveal = useCallback(() => {
-    if (!isDragging && !exitDirection) {
-      setIsRevealed(prev => !prev);
-    }
-  }, [isDragging, exitDirection]);
+    setIsRevealed(prev => !prev);
+  }, []);
 
   // -- Card Gesture Handlers --
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (exitDirection) return; 
     startX.current = e.touches[0].clientX;
-    setIsDragging(true);
+    setIsDragging(false);
+    isSwipeGesture.current = false;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (startX.current === null || exitDirection) return;
     const currentX = e.touches[0].clientX;
     const delta = currentX - startX.current;
-    setDragX(delta);
+    
+    // Deadzone check (10px): Only start dragging logic if moved enough
+    if (!isDragging) {
+        if (Math.abs(delta) > 10) {
+            setIsDragging(true);
+            isSwipeGesture.current = true; // Mark as swipe intention
+        }
+    }
+
+    if (isDragging) {
+        setDragX(delta);
+    }
   };
 
   const handleTouchEnd = () => {
     if (startX.current === null || exitDirection) return;
     
-    setIsDragging(false);
-    const threshold = 50; 
+    // Only verify swipe if we were actually dragging (passed deadzone)
+    if (isDragging) {
+        const threshold = 60; // 60px swipe threshold
 
-    if (dragX < -threshold) {
-      if (index < filteredData.length - 1) triggerSwipeAnimation('left');
-      else setDragX(0);
-    } else if (dragX > threshold) {
-      if (index > 0) triggerSwipeAnimation('right');
-      else setDragX(0);
-    } else {
-      setDragX(0);
+        if (dragX < -threshold) {
+            if (index < filteredData.length - 1) triggerSwipeAnimation('left');
+            else setDragX(0);
+        } else if (dragX > threshold) {
+            if (index > 0) triggerSwipeAnimation('right');
+            else setDragX(0);
+        } else {
+            setDragX(0);
+        }
     }
+    
+    setIsDragging(false);
     startX.current = null;
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+      // If the interaction was a swipe (dragged > 10px), ignore the click event
+      // This prevents accidental flipping when a swipe is cancelled or completed
+      if (isSwipeGesture.current) {
+          isSwipeGesture.current = false;
+          return;
+      }
+      toggleReveal();
   };
 
   // -- Keyboard Controls --
@@ -280,7 +305,10 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            <div className="w-full h-full relative bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl overflow-hidden cursor-pointer group" onClick={toggleReveal}>
+            <div 
+                className="w-full h-full relative bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl overflow-hidden cursor-pointer group" 
+                onClick={handleCardClick}
+            >
                 
                 {/* Traffic Light Grading (Top Left) */}
                 <div 
