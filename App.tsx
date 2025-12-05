@@ -154,7 +154,7 @@ const App = () => {
     // MENU
     return (
       <div className="flex flex-col items-center justify-center min-h-full w-full max-w-4xl mx-auto px-4 md:px-0 overflow-y-auto custom-scrollbar z-10 relative">
-        <MatrixRain />
+        {/* MatrixRain moved to root level */}
         
         {vocab.length === 0 ? (
           <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
@@ -264,6 +264,9 @@ const App = () => {
       onTouchStart={handleGlobalTouchStart}
       onTouchEnd={handleGlobalTouchEnd}
     >
+      {/* Background Effect - Rendered at root to ensure full coverage */}
+      {mode === GameMode.MENU && <MatrixRain />}
+
       {/* Dynamic Top Bar */}
       <nav className={navClasses}>
         <div className="flex items-center gap-3 cursor-pointer group" onClick={handleLogoClick}>
