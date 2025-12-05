@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem } from '../types';
-import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle, Keyboard } from 'lucide-react';
+import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle, Keyboard, FileBadge } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -10,13 +11,17 @@ interface Props {
   onResetLevels: () => void;
   onShuffle: () => void;
   onRestore: () => void;
+  onGetSourceName: (id: string) => string | undefined;
 }
 
-export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onResetLevels, onShuffle, onRestore }) => {
+export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onResetLevels, onShuffle, onRestore, onGetSourceName }) => {
   const [showAllDefs, setShowAllDefs] = useState(false);
   const [visibleDefs, setVisibleDefs] = useState<Set<string>>(new Set());
   const [isBulkToggling, setIsBulkToggling] = useState(false);
   
+  // Display Options
+  const [showSource, setShowSource] = useState(false);
+
   // Modal State
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isClosingModal, setIsClosingModal] = useState(false);
@@ -336,6 +341,14 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                 <Keyboard size={16} />
             </button>
 
+            <button
+                onClick={() => setShowSource(!showSource)}
+                className={`p-2 rounded transition-colors ${showSource ? 'bg-[#3e4044] text-gray-200' : 'bg-[#2c2e31] text-monkey-sub hover:text-monkey-text'}`}
+                title="Toggle Source File Display"
+            >
+                <FileBadge size={16} />
+            </button>
+
             <div className="flex-grow"></div>
 
             <button 
@@ -364,6 +377,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             {filteredData.map((item, idx) => {
                 const isDefVisible = showAllDefs || visibleDefs.has(item.id);
                 const isSelected = isSelectionModeEnabled && showSelection && idx === selectedIndex;
+                const sourceName = showSource && item.sourceId ? onGetSourceName(item.sourceId) : null;
 
                 return (
                     <div 
@@ -393,10 +407,15 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
                         {/* Word Column */}
                         <div 
-                            className="text-xl md:text-lg font-bold text-monkey-text select-text hover:text-white transition-colors mb-2 md:mb-0 md:py-3"
+                            className="text-xl md:text-lg font-bold text-monkey-text select-text hover:text-white transition-colors mb-2 md:mb-0 md:py-3 flex flex-wrap items-center gap-2"
                             onClick={(e) => { e.stopPropagation(); handleWordCycle(item, idx); }}
                         >
                             {item.word}
+                            {sourceName && (
+                                <span className="text-[10px] bg-monkey-sub/20 text-monkey-sub px-1.5 py-0.5 rounded font-normal align-middle truncate max-w-[120px]">
+                                    {sourceName}
+                                </span>
+                            )}
                         </div>
 
                         {/* Definition Column */}

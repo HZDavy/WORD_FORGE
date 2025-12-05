@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { VocabularyItem } from '../types';
-import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw, FileBadge } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -9,13 +10,15 @@ interface Props {
   onShuffle: () => void;
   onRestore: () => void;
   onSaveProgress: (state: { currentIndex: number; score: number; answeredState: Record<number, number | null> }) => void;
+  onGetSourceName: (id: string) => string | undefined;
 }
 
-export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffle, onRestore, onSaveProgress }) => {
+export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffle, onRestore, onSaveProgress, onGetSourceName }) => {
   const [currentIndex, setCurrentIndex] = useState(initialState?.currentIndex || 0);
   const [score, setScore] = useState(initialState?.score || 0);
   const [answeredState, setAnsweredState] = useState<{ [key: number]: number | null }>(initialState?.answeredState || {}); 
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showSource, setShowSource] = useState(false);
   
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
@@ -132,6 +135,13 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
       <div className="w-full flex justify-between items-end border-b border-monkey-sub/20 pb-2 md:pb-4 mb-4 md:mb-8 select-none relative">
         {/* Controls */}
         <div className="absolute -top-8 right-0 flex gap-2">
+             <button
+                onClick={() => setShowSource(!showSource)}
+                className={`p-2 transition-colors ${showSource ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
+                title="Toggle Source File"
+             >
+                <FileBadge size={16} />
+             </button>
              <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16} /></button>
              <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={16} /></button>
         </div>
@@ -148,7 +158,12 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
       <div className="mb-6 md:mb-10 text-center select-none flex-grow flex flex-col justify-center">
         <h1 className="text-3xl md:text-5xl font-bold text-monkey-text mb-2 break-words">{currentItem.word}</h1>
-        <p className="text-monkey-sub italic text-sm">选择正确的释义</p>
+        {showSource && currentItem.sourceId && (
+            <p className="text-xs text-monkey-sub mt-2 bg-monkey-sub/10 px-2 py-1 rounded inline-block self-center">
+                {onGetSourceName(currentItem.sourceId)}
+            </p>
+        )}
+        <p className="text-monkey-sub italic text-sm mt-4">选择正确的释义</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:gap-4 w-full mb-8">

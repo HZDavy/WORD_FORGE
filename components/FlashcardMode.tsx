@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
-import { ArrowLeft, ArrowRight, Shuffle, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Shuffle, RotateCcw, Eye, EyeOff, FileBadge } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -10,9 +11,10 @@ interface Props {
   onShuffle: () => void;
   onRestore: () => void;
   onSaveProgress: (index: number) => void;
+  onGetSourceName: (id: string) => string | undefined;
 }
 
-export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit, onUpdateLevel, onShuffle, onRestore, onSaveProgress }) => {
+export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit, onUpdateLevel, onShuffle, onRestore, onSaveProgress, onGetSourceName }) => {
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   
@@ -23,6 +25,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   const [index, setIndex] = useState(initialIndex < filteredData.length ? initialIndex : 0);
   const [isRevealed, setIsRevealed] = useState(false);
   const [showAllDefs, setShowAllDefs] = useState(false);
+  const [showSource, setShowSource] = useState(false);
   
   // Gesture State for Main Card
   const [dragX, setDragX] = useState(0);
@@ -313,6 +316,13 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
             })}
         </div>
         <div className="flex gap-2">
+            <button
+                onClick={() => setShowSource(!showSource)}
+                className={`p-2 transition-colors ${showSource ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
+                title="Toggle Source File"
+            >
+                <FileBadge size={18} />
+            </button>
             <button 
                 onClick={toggleShowAllDefs} 
                 className={`p-2 transition-colors ${showAllDefs ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`} 
@@ -377,6 +387,13 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
                     ))}
                 </div>
 
+                {/* Source Badge (Visual Only) */}
+                {showSource && nextCard.sourceId && (
+                     <div className="absolute top-4 right-4 text-[10px] bg-monkey-sub/10 text-monkey-sub px-2 py-1 rounded max-w-[40%] truncate">
+                         {onGetSourceName(nextCard.sourceId)}
+                     </div>
+                )}
+
                 {/* Content */}
                 <div className="flex flex-col items-center justify-center mb-6">
                     <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4 opacity-50">Word</span>
@@ -427,6 +444,13 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
                          ></div>
                     ))}
                 </div>
+
+                {/* Source Badge */}
+                {showSource && currentCard.sourceId && (
+                     <div className="absolute top-4 right-4 text-[10px] bg-monkey-sub/10 text-monkey-sub px-2 py-1 rounded max-w-[40%] truncate z-20">
+                         {onGetSourceName(currentCard.sourceId)}
+                     </div>
+                )}
 
                 {/* Content Container */}
                 <div className="relative w-full h-full flex flex-col items-center justify-center p-6 md:p-8 text-center">
