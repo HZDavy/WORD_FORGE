@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
 import { VocabularyItem, GameMode, GameProgress } from './types';
@@ -250,14 +249,19 @@ const App = () => {
     resetGame();
   }
 
+  // Dynamic Navbar Classes
+  const navClasses = mode === GameMode.MENU 
+    ? "w-[95%] max-w-6xl mx-auto flex justify-between items-center mt-2 mb-6 rounded-2xl bg-[#2c2e31]/80 backdrop-blur-md border border-monkey-sub/20 shadow-xl px-6 py-3 flex-shrink-0 z-50 transition-all duration-300"
+    : "w-full max-w-6xl mx-auto flex justify-between items-center mt-2 mb-2 px-6 py-2 flex-shrink-0 z-50 bg-transparent transition-all duration-300";
+
   return (
     <div 
-      className="fixed inset-0 w-full h-full bg-monkey-bg text-monkey-text p-4 md:p-6 font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden"
+      className="fixed inset-0 w-full h-full bg-monkey-bg text-monkey-text font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden"
       onTouchStart={handleGlobalTouchStart}
       onTouchEnd={handleGlobalTouchEnd}
     >
-      {/* Top Bar - Solid BG */}
-      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4 flex-shrink-0 z-20 bg-monkey-bg">
+      {/* Dynamic Top Bar */}
+      <nav className={navClasses}>
         <div className="flex items-center gap-3 cursor-pointer group" onClick={handleLogoClick}>
             <Flame className={`text-monkey-main transition-transform duration-300 ${rebootAnim ? 'animate-spin' : 'group-hover:scale-110'}`} size={24} />
             <span className={`font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-all ${rebootAnim ? 'opacity-50' : 'opacity-100'}`}>词炼</span>
@@ -268,13 +272,15 @@ const App = () => {
       </nav>
 
       {/* Main Content Area using Flexbox for proper internal scrolling */}
-      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto relative flex flex-col">
+      <main className={`flex-1 min-h-0 w-full max-w-6xl mx-auto relative flex flex-col ${mode === GameMode.MENU ? '' : 'px-0'}`}>
         {renderContent()}
       </main>
 
-      <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-2 pt-2 md:pt-0 flex-shrink-0 z-10">
-        &copy; 2026 Word Forge. Performance Edition.
-      </footer>
+      {mode === GameMode.MENU && (
+        <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-4 pt-2 md:pt-0 flex-shrink-0 z-10">
+            &copy; 2026 Word Forge. Performance Edition.
+        </footer>
+      )}
     </div>
   );
 };

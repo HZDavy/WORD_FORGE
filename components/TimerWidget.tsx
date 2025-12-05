@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, Pause, RotateCcw, Timer, Watch, Coffee, X } from 'lucide-react';
 
 type TimerMode = 'STOPWATCH' | 'TIMER' | 'POMODORO';
@@ -44,7 +45,7 @@ export const TimerWidget: React.FC = () => {
   // Dial State
   const containerRef = useRef<HTMLDivElement>(null);
   const lastAngleRef = useRef<number | null>(null);
-  const angleAccumulatorRef = useRef(0); // For handling slow rotations and quantization
+  const angleAccumulatorRef = useRef(0); 
   const [dialVisualRotation, setDialVisualRotation] = useState(0);
 
   // Handle open/close with animations
@@ -184,24 +185,23 @@ export const TimerWidget: React.FC = () => {
     lastAngleRef.current = currentAngle;
 
     // Physics & Accumulation
-    const absDelta = Math.abs(delta);
-    let effectiveDelta = delta;
+    angleAccumulatorRef.current += delta;
 
-    // Inertia: if moving fast (>5 deg/frame), amplify the effect
-    if (absDelta > 5) {
-         const factor = Math.abs(delta) / 3; 
-         effectiveDelta = delta * factor;
-    }
-
-    angleAccumulatorRef.current += effectiveDelta;
-
-    // Threshold: Quantize updates to 1 second (1000ms) steps
-    // Let's say 5 degrees of accumulated rotation = 1 second change
-    const TICK_THRESHOLD = 5; 
+    // Dynamic Speed Logic
+    // If delta is large (fast spin), we treat each tick as a Minute
+    // If delta is small (slow spin), we treat each tick as a Second
+    const rotationSpeed = Math.abs(delta);
+    const isFastSpin = rotationSpeed > 10; // Threshold for "Fast" (degrees per event)
+    
+    const TICK_THRESHOLD = 5; // Degrees per tick
 
     if (Math.abs(angleAccumulatorRef.current) >= TICK_THRESHOLD) {
         const steps = Math.trunc(angleAccumulatorRef.current / TICK_THRESHOLD);
-        const timeChange = steps * 1000; // 1 second per step
+        
+        // Determine unit: 1 minute if fast, 1 second if slow
+        const msPerTick = isFastSpin ? 60000 : 1000;
+        
+        const timeChange = steps * msPerTick;
         
         // Remove consumed angle from accumulator
         angleAccumulatorRef.current -= (steps * TICK_THRESHOLD);
@@ -312,9 +312,9 @@ export const TimerWidget: React.FC = () => {
         <span className="text-lg">{getDisplayTime()}</span>
       </button>
 
-      {/* Full Screen Overlay for Interaction */}
-      {isVisible && (
-        <div className="fixed inset-0 z-50 overflow-hidden touch-none" style={{ touchAction: 'none' }}>
+      {/* Full Screen Overlay for Interaction (Portaled to Body) */}
+      {isVisible && createPortal(
+        <div className="fixed inset-0 z-[9999] overflow-hidden touch-none" style={{ touchAction: 'none' }}>
             {/* Backdrop */}
             <div className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`} onClick={() => setIsOpen(false)}></div>
             
@@ -429,7 +429,8 @@ export const TimerWidget: React.FC = () => {
                 </div>
 
             </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
