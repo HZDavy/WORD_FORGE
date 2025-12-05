@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { VocabularyItem } from '../types';
 import { Shuffle, RotateCcw } from 'lucide-react';
@@ -178,7 +177,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
                    baseClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] text-sm md:text-base font-normal leading-relaxed";
                }
            } else if (b.status === 'selected') {
-               baseClass += "border-monkey-main bg-monkey-main text-monkey-bg scale-105 shadow-lg z-10 text-sm md:text-base";
+               baseClass += "border-monkey-main bg-monkey-main text-monkey-bg scale-105 z-10 text-sm md:text-base";
            } else if (b.status === 'wrong') {
                baseClass += "border-monkey-error bg-monkey-error text-white animate-shake text-sm md:text-base";
            } else if (b.status === 'success') {

@@ -302,7 +302,7 @@ export const TimerWidget: React.FC = () => {
       {/* Trigger Button - Top Right */}
       <button 
         onClick={() => { setIsOpen(true); setIsAlarming(false); }}
-        className={`bg-monkey-sub/10 px-4 py-2 rounded-lg border border-monkey-sub/20 font-mono font-bold flex items-center gap-2 hover:bg-monkey-sub/20 transition-all z-40 ${isAlarming ? 'animate-pulse text-red-500 border-red-500 shadow-[0_0_15px_rgba(202,71,84,0.5)]' : 'text-monkey-text'} ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`bg-monkey-sub/10 px-4 py-2 rounded-lg border border-monkey-sub/20 font-mono font-bold flex items-center gap-2 hover:bg-monkey-sub/20 transition-all z-40 ${isAlarming ? 'animate-pulse text-red-500 border-red-500' : 'text-monkey-text'} ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
          {mode === 'POMODORO' && (
             <span className={`text-[10px] uppercase font-bold mr-1 ${pomoState === 'STUDY' ? 'text-monkey-main' : 'text-blue-400'}`}>
@@ -321,7 +321,7 @@ export const TimerWidget: React.FC = () => {
             {/* Quarter Circle Menu - Top Right Fixed */}
             <div 
                 ref={containerRef}
-                className={`absolute top-0 right-0 w-[420px] h-[420px] max-w-[95vw] max-h-[95vw] bg-[#2c2e31] border-l-4 border-b-4 border-monkey-main rounded-bl-[100%] shadow-[0_10px_50px_rgba(0,0,0,0.8)] origin-top-right flex items-end justify-start overflow-hidden select-none touch-none ${isClosing ? 'animate-spring-out' : 'animate-spring-in'}`}
+                className={`absolute top-0 right-0 w-[420px] h-[420px] max-w-[95vw] max-h-[95vw] bg-[#2c2e31] border-l-4 border-b-4 border-monkey-main rounded-bl-[100%] origin-top-right flex items-end justify-start overflow-hidden select-none touch-none ${isClosing ? 'animate-spring-out' : 'animate-spring-in'}`}
                 style={{ touchAction: 'none' }}
             >
                 {/* --- The Radio Dial (SVG) --- */}
@@ -377,7 +377,7 @@ export const TimerWidget: React.FC = () => {
                     <div className="flex flex-col items-center gap-4">
                          <button 
                             onClick={() => setIsRunning(!isRunning)}
-                            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95 bg-[#2c2e31] z-50 ${isRunning ? 'text-monkey-text border border-monkey-sub/50' : 'text-monkey-main hover:text-white border border-monkey-main'}`}
+                            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 bg-[#2c2e31] z-50 ${isRunning ? 'text-monkey-text border border-monkey-sub/50' : 'text-monkey-main hover:text-white border border-monkey-main'}`}
                             title={isRunning ? "Pause" : "Start"}
                         >
                             {isRunning ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
@@ -396,16 +396,16 @@ export const TimerWidget: React.FC = () => {
 
                     {/* Bottom: Modes */}
                     <div className="flex flex-col gap-3">
-                        <button onClick={() => { setMode('STOPWATCH'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'STOPWATCH' ? 'text-monkey-main border-monkey-main shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Stopwatch"><Watch size={20}/></button>
-                        <button onClick={() => { setMode('TIMER'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'TIMER' ? 'text-monkey-main border-monkey-main shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Timer"><Timer size={20}/></button>
-                        <button onClick={() => { setMode('POMODORO'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'POMODORO' ? 'text-monkey-main border-monkey-main shadow-[0_0_15px_rgba(226,183,20,0.3)]' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Pomodoro"><Coffee size={20}/></button>
+                        <button onClick={() => { setMode('STOPWATCH'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'STOPWATCH' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Stopwatch"><Watch size={20}/></button>
+                        <button onClick={() => { setMode('TIMER'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'TIMER' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Timer"><Timer size={20}/></button>
+                        <button onClick={() => { setMode('POMODORO'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'POMODORO' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Pomodoro"><Coffee size={20}/></button>
                     </div>
                 </div>
 
                 {/* Main Digital Display - Positioned relative to center area */}
                 <div className="absolute top-[28%] right-[28%] z-40 text-right animate-text-pop pointer-events-none w-48">
                     <div className="text-xs font-bold text-monkey-sub tracking-widest mb-1">{getDialLabel()}</div>
-                    <div className="text-5xl font-mono font-bold text-monkey-main tracking-tighter drop-shadow-2xl mb-4">
+                    <div className="text-5xl font-mono font-bold text-monkey-main tracking-tighter mb-4">
                         {getDisplayTime()}
                     </div>
 

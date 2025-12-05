@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
-import { ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Shuffle, RotateCcw, Eye, EyeOff } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -22,6 +22,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
 
   const [index, setIndex] = useState(initialIndex < filteredData.length ? initialIndex : 0);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [showAllDefs, setShowAllDefs] = useState(false);
   
   // Gesture State for Main Card
   const [dragX, setDragX] = useState(0);
@@ -138,6 +139,10 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
     setIsRevealed(prev => !prev);
   }, []);
 
+  const toggleShowAllDefs = () => {
+      setShowAllDefs(prev => !prev);
+  };
+
   // -- Card Gesture Handlers --
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -248,19 +253,15 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
 
   // -- Styles --
   const getSwipeStyle = () => {
-    const rotate = dragX * 0.2; 
-    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
-    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    const rotate = dragX * 0.1; // Reduced rotation
+    if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-15deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
+    if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(15deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     return { 
       transform: `translate3d(${dragX}px, 0, 0) rotate(${rotate}deg)`, 
       transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
       opacity: 1
     };
   };
-
-  const progress = Math.min(Math.abs(dragX) / 300, 1);
-  const bgScale = 0.95 + (progress * 0.05); 
-  const bgOpacity = 0.5 + (progress * 0.5); 
 
   // Progress Bar Styles
   const progressStyle = { 
@@ -302,7 +303,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
                         onClick={() => toggleFilter(level)}
                         className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all ${
                             isActive 
-                                ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50 shadow-md' 
+                                ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50' 
                                 : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
                         }`}
                     >
@@ -312,6 +313,13 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
             })}
         </div>
         <div className="flex gap-2">
+            <button 
+                onClick={toggleShowAllDefs} 
+                className={`p-2 transition-colors ${showAllDefs ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`} 
+                title={showAllDefs ? "Hide Translations" : "Always Show Translations"}
+            >
+                {showAllDefs ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
             <button onClick={() => { setIndex(0); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
             <button onClick={() => { setIndex(0); onRestore(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
         </div>
@@ -337,7 +345,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
           style={progressStyle}
         />
         <div 
-            className={`absolute w-4 h-4 bg-white rounded-full shadow-lg transform -translate-x-1/2 pointer-events-none transition-opacity duration-150 ${isScrubbing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}
+            className={`absolute w-4 h-4 bg-white rounded-full transform -translate-x-1/2 pointer-events-none transition-opacity duration-150 ${isScrubbing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}
             style={thumbStyle}
         />
         <div 
@@ -351,17 +359,40 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
       {/* Scene */}
       <div className="w-full relative flex-grow min-h-[40vh] md:h-96 md:flex-grow-0 flex items-center justify-center perspective-1000">
         
-        {/* Background Card (Next) */}
+        {/* Background Card (Next) - Fixed Scale */}
         {nextCard && (
           <div 
-            className="absolute w-full h-full z-0 pointer-events-none transition-transform duration-75"
-            style={{ 
-                transform: `scale(${bgScale}) translateY(12px)`, 
-                opacity: bgOpacity 
-            }}
+            className="absolute w-full h-full z-0 pointer-events-none"
           >
-             <div className="w-full h-full bg-[#2c2e31] border border-monkey-sub/20 rounded-xl flex items-center justify-center shadow-2xl">
-                <h2 className="text-3xl md:text-4xl font-bold text-monkey-main opacity-30 px-4 text-center">{nextCard.word}</h2>
+             <div 
+                className="w-full h-full bg-[#2c2e31] border border-monkey-sub/20 rounded-xl flex flex-col items-center justify-center p-6 md:p-8 relative"
+             >
+                {/* Traffic Lights (Visual Only) */}
+                <div className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30">
+                    {[1, 2, 3].map(l => (
+                         <div 
+                            key={l}
+                            className={`w-3 h-3 rounded-full border border-monkey-sub/50 transition-transform ${nextCard.level >= l ? (nextCard.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                         ></div>
+                    ))}
+                </div>
+
+                {/* Content */}
+                <div className="flex flex-col items-center justify-center mb-6">
+                    <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4 opacity-50">Word</span>
+                    <h2 className="text-3xl md:text-5xl font-bold text-monkey-main break-words max-w-full text-center">{nextCard.word}</h2>
+                </div>
+                
+                 {/* Definition Layer (Redacted Style) */}
+                 <div className="flex flex-col items-center justify-center w-full px-2 md:px-6">
+                    <p className="text-lg md:text-xl leading-relaxed max-h-[40vh] md:max-h-40 overflow-hidden custom-scrollbar text-center text-transparent">
+                        <span 
+                            className={`rounded px-1 select-none ${showAllDefs ? 'bg-transparent text-gray-200' : 'bg-[#3f4145] text-transparent'}`}
+                        >
+                            {nextCard.definition}
+                        </span>
+                    </p>
+                </div>
              </div>
           </div>
         )}
@@ -376,7 +407,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
             onTouchEnd={handleTouchEnd}
         >
             <div 
-                className="w-full h-full relative bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl overflow-hidden cursor-pointer group" 
+                className="w-full h-full relative bg-[#2c2e31] border border-monkey-sub/20 rounded-xl overflow-hidden cursor-pointer group" 
                 onClick={handleCardClick}
             >
                 
@@ -412,7 +443,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
                             <span 
                               className={`
                                 rounded px-1
-                                ${isRevealed 
+                                ${isRevealed || showAllDefs
                                   ? 'bg-transparent text-gray-200' 
                                   : 'bg-[#3f4145] text-transparent select-none' 
                                 }

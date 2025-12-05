@@ -235,7 +235,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       {/* Confirmation Modal */}
       {showResetConfirm && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm touch-none">
-          <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl shadow-2xl max-w-sm w-full animate-pop-in mx-4">
+          <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl max-w-sm w-full animate-pop-in mx-4">
             <div className="flex items-center gap-3 text-monkey-error mb-4">
               <AlertTriangle size={24} />
               <h3 className="text-xl font-bold">Extinguish All?</h3>
@@ -280,7 +280,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                         onClick={() => toggleFilter(level)}
                         className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all ${
                             activeLevels.has(level) 
-                                ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50 shadow-md' 
+                                ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50' 
                                 : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
                         }`}
                     >
@@ -306,7 +306,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
             <button 
                 onClick={toggleSelectionMode}
-                className={`p-2 rounded transition-colors ${isSelectionModeEnabled ? 'bg-[#3e4044] text-gray-200 shadow-inner' : 'bg-[#2c2e31] text-monkey-sub hover:text-monkey-text'}`}
+                className={`p-2 rounded transition-colors ${isSelectionModeEnabled ? 'bg-[#3e4044] text-gray-200' : 'bg-[#2c2e31] text-monkey-sub hover:text-monkey-text'}`}
                 title="Toggle Keyboard/Selection Mode"
             >
                 <Keyboard size={16} />
