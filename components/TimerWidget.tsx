@@ -188,10 +188,8 @@ export const TimerWidget: React.FC = () => {
     angleAccumulatorRef.current += delta;
 
     // Dynamic Speed Logic
-    // If delta is large (fast spin), we treat each tick as a Minute
-    // If delta is small (slow spin), we treat each tick as a Second
     const rotationSpeed = Math.abs(delta);
-    const isFastSpin = rotationSpeed > 2; // Threshold for "Fast" (degrees per event) - Reduced to 2 for easier trigger
+    const isFastSpin = rotationSpeed > 2; // Threshold for "Fast" (degrees per event)
     
     const TICK_THRESHOLD = 5; // Degrees per tick
 
@@ -415,10 +413,10 @@ export const TimerWidget: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Main Digital Display - Positioned relative to center area */}
-                <div className="absolute top-[28%] right-[28%] z-40 text-right animate-text-pop pointer-events-none w-48">
+                {/* Main Digital Display - Repositioned to top-right near close button */}
+                <div className="absolute top-6 right-24 z-40 text-right animate-text-pop pointer-events-none w-auto">
                     <div className="text-xs font-bold text-monkey-sub tracking-widest mb-1">{getDialLabel()}</div>
-                    <div className="text-5xl font-mono font-bold text-monkey-main tracking-tighter mb-4">
+                    <div className="text-4xl md:text-5xl font-mono font-bold text-monkey-main tracking-tighter">
                         {getDisplayTime()}
                     </div>
 
