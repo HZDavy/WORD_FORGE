@@ -249,10 +249,14 @@ const App = () => {
     resetGame();
   }
 
-  // Dynamic Navbar Classes
-  const navClasses = mode === GameMode.MENU 
-    ? "w-[95%] max-w-6xl mx-auto flex justify-between items-center mt-2 mb-6 rounded-2xl bg-[#2c2e31]/80 backdrop-blur-md border border-monkey-sub/20 shadow-xl px-6 py-3 flex-shrink-0 z-50 transition-all duration-300"
-    : "w-full max-w-6xl mx-auto flex justify-between items-center mt-2 mb-2 px-6 py-2 flex-shrink-0 z-50 bg-transparent transition-all duration-300";
+  // Dynamic Navbar Classes - Optimized for smooth morphing without flashing
+  // We explicitly define all transitioning properties in both states to prevent jumps.
+  const isMenu = mode === GameMode.MENU;
+  const navClasses = `
+    flex justify-between items-center z-50 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+    max-w-6xl mx-auto flex-shrink-0
+    ${isMenu ? 'w-[95%] mt-2 mb-6 px-6 py-3 rounded-2xl bg-[#2c2e31]/80 backdrop-blur-md border border-monkey-sub/20 shadow-xl' : 'w-full mt-2 mb-2 px-6 py-2 rounded-none bg-transparent border border-transparent shadow-none'}
+  `;
 
   return (
     <div 

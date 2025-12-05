@@ -16,7 +16,11 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   const [showAllDefs, setShowAllDefs] = useState(false);
   const [visibleDefs, setVisibleDefs] = useState<Set<string>>(new Set());
   const [isBulkToggling, setIsBulkToggling] = useState(false);
+  
+  // Modal State
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isClosingModal, setIsClosingModal] = useState(false);
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showSelection, setShowSelection] = useState(false);
   const [isSelectionModeEnabled, setIsSelectionModeEnabled] = useState(false);
@@ -68,12 +72,22 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
   const handleResetClick = () => {
       setShowResetConfirm(true);
+      setIsClosingModal(false);
+  };
+
+  const handleCloseModal = () => {
+      setIsClosingModal(true);
+      // Wait for spring-out animation to finish
+      setTimeout(() => {
+          setShowResetConfirm(false);
+          setIsClosingModal(false);
+      }, 400); 
   };
 
   const confirmReset = () => {
       onResetLevels();
       setActiveLevels(new Set([0, 1, 2, 3]));
-      setShowResetConfirm(false);
+      handleCloseModal();
   };
 
   const toggleAll = () => {
@@ -179,7 +193,11 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
        if (e.code === 'Escape') {
-           onExit();
+           if (showResetConfirm) {
+               handleCloseModal();
+           } else {
+               onExit();
+           }
            return;
        }
 
@@ -215,7 +233,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
         window.removeEventListener('keydown', handleKeyDown);
         if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
     };
-  }, [onExit, filteredData, selectedIndex, onUpdateLevel, wakeSelection, isSelectionModeEnabled]);
+  }, [onExit, filteredData, selectedIndex, onUpdateLevel, wakeSelection, isSelectionModeEnabled, showResetConfirm]);
 
   // Scroll current item into view
   useEffect(() => {
@@ -234,8 +252,14 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     >
       {/* Confirmation Modal */}
       {showResetConfirm && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm touch-none">
-          <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl max-w-sm w-full animate-pop-in mx-4">
+        <div 
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm touch-none transition-opacity duration-300 ${isClosingModal ? 'opacity-0' : 'opacity-100'}`}
+            onClick={(e) => { e.stopPropagation(); handleCloseModal(); }}
+        >
+          <div 
+            className={`bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl max-w-sm w-full mx-4 ${isClosingModal ? 'animate-spring-out' : 'animate-spring-in'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 text-monkey-error mb-4">
               <AlertTriangle size={24} />
               <h3 className="text-xl font-bold">Extinguish All?</h3>
@@ -245,7 +269,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             </p>
             <div className="flex justify-end gap-3">
               <button 
-                onClick={(e) => { e.stopPropagation(); setShowResetConfirm(false); }}
+                onClick={(e) => { e.stopPropagation(); handleCloseModal(); }}
                 className="px-4 py-2 rounded text-monkey-sub hover:text-monkey-text hover:bg-monkey-sub/10 transition-colors"
               >
                 Cancel

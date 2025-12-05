@@ -340,8 +340,11 @@ export const TimerWidget: React.FC = () => {
                     {/* The Ticks Track */}
                     <g>{ticks}</g>
                     
-                    {/* Tuner Indicator Line (Static Ref) */}
-                    <line x1="400" y1="0" x2="117" y2="283" stroke="#e2b714" strokeWidth="2" strokeDasharray="4 4" className="opacity-30" />
+                    {/* Tuner Indicator Line (Static Ref) - Split Segments to Create Gap */}
+                    {/* Segment 1: From Center to before Inner Wheel (r=0 to r=260) */}
+                    <line x1="400" y1="0" x2="216" y2="184" stroke="#e2b714" strokeWidth="2" strokeDasharray="4 4" className="opacity-30" />
+                    {/* Segment 2: From after Outer Wheel to Arrow (r=360 to r=390) */}
+                    <line x1="145" y1="255" x2="124" y2="276" stroke="#e2b714" strokeWidth="2" strokeDasharray="4 4" className="opacity-30" />
 
                     {/* Arrow Pointer Logic */}
                     <g transform="translate(117, 283) rotate(-45)">
@@ -357,7 +360,17 @@ export const TimerWidget: React.FC = () => {
                     <g transform={`rotate(${dialVisualRotation}, 400, 0)`} style={{ transition: lastAngleRef.current ? 'none' : 'transform 0.5s ease-out' }}>
                         {/* Denser dashed line for visual feedback */}
                         <circle cx="400" cy="0" r="280" fill="none" stroke="#3e4044" strokeWidth="1" strokeDasharray="2 3" opacity="0.5" />
-                        <circle cx="400" cy="0" r="340" fill="none" stroke="#e2b714" strokeWidth="2" strokeDasharray="5 20" opacity="0.3" />
+                        
+                        {/* Outer Ring - Dots */}
+                        <circle 
+                          cx="400" cy="0" r="340" 
+                          fill="none" 
+                          stroke="#e2b714" 
+                          strokeWidth="3" 
+                          strokeLinecap="round"
+                          strokeDasharray="0 15" 
+                          opacity="0.5" 
+                        />
                     </g>
                 </svg>
 
@@ -394,11 +407,11 @@ export const TimerWidget: React.FC = () => {
 
                     <div className="flex-grow"></div>
 
-                    {/* Bottom: Modes */}
-                    <div className="flex flex-col gap-3">
-                        <button onClick={() => { setMode('STOPWATCH'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'STOPWATCH' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Stopwatch"><Watch size={20}/></button>
-                        <button onClick={() => { setMode('TIMER'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'TIMER' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Timer"><Timer size={20}/></button>
-                        <button onClick={() => { setMode('POMODORO'); setIsRunning(false); }} className={`p-3 rounded-full transition-all border bg-[#2c2e31] ${mode === 'POMODORO' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Pomodoro"><Coffee size={20}/></button>
+                    {/* Bottom: Modes (Compact) */}
+                    <div className="flex flex-col gap-2">
+                        <button onClick={() => { setMode('STOPWATCH'); setIsRunning(false); }} className={`p-2 rounded-full transition-all border bg-[#2c2e31] ${mode === 'STOPWATCH' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Stopwatch"><Watch size={16}/></button>
+                        <button onClick={() => { setMode('TIMER'); setIsRunning(false); }} className={`p-2 rounded-full transition-all border bg-[#2c2e31] ${mode === 'TIMER' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Timer"><Timer size={16}/></button>
+                        <button onClick={() => { setMode('POMODORO'); setIsRunning(false); }} className={`p-2 rounded-full transition-all border bg-[#2c2e31] ${mode === 'POMODORO' ? 'text-monkey-main border-monkey-main' : 'text-monkey-sub border-monkey-sub/20 hover:text-white hover:border-white'}`} title="Pomodoro"><Coffee size={16}/></button>
                     </div>
                 </div>
 
