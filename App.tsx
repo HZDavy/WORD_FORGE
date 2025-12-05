@@ -1,5 +1,6 @@
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
 import { VocabularyItem, GameMode, GameProgress, ForgeSaveData, SourceFile } from './types';
 import { FlashcardMode } from './components/FlashcardMode';
@@ -8,7 +9,7 @@ import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
 import { MatrixRain } from './components/MatrixRain';
 import { TimerWidget } from './components/TimerWidget';
-import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X } from 'lucide-react';
+import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle } from 'lucide-react';
 
 const App = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
@@ -20,8 +21,19 @@ const App = () => {
   
   // UI State for Source Manager
   const [isSourceManagerOpen, setIsSourceManagerOpen] = useState(false);
+  const [isSourceManagerClosing, setIsSourceManagerClosing] = useState(false);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+
+  // Import Conflict Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<ForgeSaveData | null>(null);
+  const [isClosingModal, setIsClosingModal] = useState(false);
+  
+  // Delete Confirmation State
+  const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isClosingDeleteModal, setIsClosingDeleteModal] = useState(false);
   
   // Gesture State for Global Edge Swipe
   const touchStartX = useRef<number | null>(null);
@@ -50,27 +62,20 @@ const App = () => {
       const fileName = file.name;
       const lowerName = fileName.toLowerCase();
 
-      // Handle .forge/.json save files (Full State Restore)
+      // Handle .forge/.json save files (Full State Restore or Merge)
       if (lowerName.endsWith('.forge') || lowerName.endsWith('.json')) {
           const text = await file.text();
           try {
               const saveData = JSON.parse(text) as ForgeSaveData;
               if (saveData.vocab && Array.isArray(saveData.vocab)) {
-                  setVocab(saveData.vocab);
-                  setSources(saveData.sources || []); // Restore sources if available
-                  setProgress(saveData.progress || {});
-                  
-                  // Migration for legacy save files (no sources)
-                  if ((!saveData.sources || saveData.sources.length === 0) && saveData.vocab.length > 0) {
-                      const legacySource: SourceFile = {
-                          id: 'legacy_import',
-                          name: 'Imported Data',
-                          enabled: true,
-                          dateAdded: Date.now(),
-                          wordCount: saveData.vocab.length
-                      };
-                      setSources([legacySource]);
-                      setVocab(saveData.vocab.map(v => ({ ...v, sourceId: 'legacy_import' })));
+                  // If we have existing data, prompt for Merge vs Overwrite
+                  if (vocab.length > 0) {
+                      setPendingSaveData(saveData);
+                      setShowImportModal(true);
+                      setIsClosingModal(false);
+                  } else {
+                      // Empty state: direct load
+                      loadSaveData(saveData, false);
                   }
               } else {
                   throw new Error("Invalid save file format");
@@ -122,7 +127,6 @@ const App = () => {
         setVocab(prev => [...prev, ...taggedWords]);
         
         // Don't reset progress, just append data. 
-        // Note: Existing progress indices might drift if we prepend, but we append here.
       }
     } catch (err: any) {
       console.error(err);
@@ -130,6 +134,63 @@ const App = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadSaveData = (saveData: ForgeSaveData, isMerge: boolean) => {
+      // 1. Prepare Incoming Sources
+      let incomingSources = saveData.sources || [];
+      let incomingVocab = saveData.vocab;
+
+      // Migration for legacy save files (no sources)
+      if (incomingSources.length === 0 && incomingVocab.length > 0) {
+          const legacySource: SourceFile = {
+              id: 'legacy_import_' + Date.now(),
+              name: 'Imported Data',
+              enabled: true,
+              dateAdded: Date.now(),
+              wordCount: incomingVocab.length
+          };
+          incomingSources = [legacySource];
+          incomingVocab = incomingVocab.map(v => ({ ...v, sourceId: legacySource.id }));
+      }
+
+      if (isMerge) {
+          // MERGE LOGIC
+          // 1. Merge Sources (Prevent ID collisions, although IDs should be unique)
+          const existingSourceIds = new Set(sources.map(s => s.id));
+          const newSources = incomingSources.filter(s => !existingSourceIds.has(s.id));
+          
+          // 2. Merge Vocab
+          const existingVocabIds = new Set(vocab.map(v => v.id));
+          const newVocab = incomingVocab.filter(v => !existingVocabIds.has(v.id));
+
+          setSources(prev => [...prev, ...newSources]);
+          setVocab(prev => [...prev, ...newVocab]);
+          
+          // Note: We currently DO NOT merge progress (quiz scores etc) because it's complex.
+          // We keep the current session's progress.
+      } else {
+          // OVERWRITE LOGIC
+          setVocab(incomingVocab);
+          setSources(incomingSources);
+          setProgress(saveData.progress || {});
+      }
+  };
+
+  const handleImportChoice = (choice: 'merge' | 'overwrite') => {
+      if (pendingSaveData) {
+          loadSaveData(pendingSaveData, choice === 'merge');
+      }
+      handleCloseImportModal();
+  };
+
+  const handleCloseImportModal = () => {
+      setIsClosingModal(true);
+      setTimeout(() => {
+          setShowImportModal(false);
+          setIsClosingModal(false);
+          setPendingSaveData(null);
+      }, 400);
   };
 
   const handleExportProgress = () => {
@@ -155,15 +216,47 @@ const App = () => {
   };
 
   // --- Source Management ---
+  const toggleSourceManager = () => {
+      if (isSourceManagerOpen) {
+          setIsSourceManagerClosing(true);
+          setTimeout(() => {
+              setIsSourceManagerOpen(false);
+              setIsSourceManagerClosing(false);
+          }, 250); // Match animation duration
+      } else {
+          setIsSourceManagerOpen(true);
+      }
+  };
+
   const toggleSource = (id: string) => {
       setSources(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
   };
 
-  const deleteSource = (id: string) => {
-      // 1. Remove from sources
-      setSources(prev => prev.filter(s => s.id !== id));
-      // 2. Remove words belonging to this source
-      setVocab(prev => prev.filter(v => v.sourceId !== id));
+  // Request Delete Logic
+  const requestDeleteSource = (id: string) => {
+      setSourceToDelete(id);
+      setShowDeleteConfirm(true);
+      setIsClosingDeleteModal(false);
+  };
+
+  const confirmDeleteSource = () => {
+      if (sourceToDelete) {
+          // 1. Remove from sources
+          setSources(prev => prev.filter(s => s.id !== sourceToDelete));
+          // 2. Remove words belonging to this source
+          setVocab(prev => prev.filter(v => v.sourceId !== sourceToDelete));
+          setSourceToDelete(null);
+      }
+      closeDeleteModal();
+  };
+
+  const closeDeleteModal = () => {
+      setIsClosingDeleteModal(true);
+      setTimeout(() => {
+          setShowDeleteConfirm(false);
+          setIsClosingDeleteModal(false);
+          setSourceToDelete(null);
+      }, 400);
   };
 
   const renameSource = (id: string, newName: string) => {
@@ -172,7 +265,7 @@ const App = () => {
       setEditingSourceId(null);
   };
 
-  const getSourceName = useCallback((id?: string) => {
+  const getSourceName = useCallback((id?: string | null) => {
       if (!id) return undefined;
       return sources.find(s => s.id === id)?.name;
   }, [sources]);
@@ -295,17 +388,17 @@ const App = () => {
               
               <div className="flex justify-between items-center border-b border-monkey-sub/10 pb-2">
                 <div 
-                    className="flex items-center gap-2 cursor-pointer group"
-                    onClick={() => setIsSourceManagerOpen(!isSourceManagerOpen)}
+                    className="flex items-center gap-2 cursor-pointer group mr-4 select-none"
+                    onClick={toggleSourceManager}
                 >
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="text-monkey-main font-mono text-sm">
                         {activeVocab.length} active words <span className="text-monkey-sub text-xs">/ {vocab.length} total</span>
                     </span>
-                    {isSourceManagerOpen ? <ChevronDown size={14} className="text-monkey-sub" /> : <ChevronRight size={14} className="text-monkey-sub" />}
+                    <ChevronRight size={14} className={`text-monkey-sub transition-transform duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'rotate-90' : ''}`} />
                 </div>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-6">
                   <button 
                       onClick={handleExportProgress} 
                       className="text-xs text-monkey-sub hover:text-monkey-main flex items-center gap-1 transition-colors"
@@ -320,15 +413,14 @@ const App = () => {
                   <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors">
                       <FileUp size={14} />
                       <span className="hidden sm:inline">Add/Replace</span>
-                      <span className="sm:hidden">Add</span>
                       <input type="file" className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
                   </label>
                 </div>
               </div>
 
               {/* Source Manager Panel */}
-              {isSourceManagerOpen && (
-                  <div className="bg-[#252628] rounded mt-2 p-2 text-sm border border-monkey-sub/20 animate-fade-in">
+              {(isSourceManagerOpen || isSourceManagerClosing) && (
+                  <div className={`bg-[#252628] rounded border border-monkey-sub/20 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-vertical' : 'animate-expand-vertical'}`}>
                       <div className="flex justify-between items-center mb-2 px-2">
                           <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
                       </div>
@@ -371,7 +463,7 @@ const App = () => {
                                   )}
                                   
                                   <button 
-                                    onClick={() => deleteSource(source.id)} 
+                                    onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
                                     className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
                                     title="Remove File"
                                   >
@@ -489,6 +581,86 @@ const App = () => {
         <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-4 pt-2 md:pt-0 flex-shrink-0 z-10">
             &copy; 2026 Word Forge. Workspace Edition.
         </footer>
+      )}
+
+      {/* Forge Import Conflict Modal */}
+      {showImportModal && createPortal(
+        <div 
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingModal ? 'opacity-0' : 'opacity-100'}`}
+            onClick={(e) => { e.stopPropagation(); handleCloseImportModal(); }}
+        >
+            <div 
+                className={`bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl max-w-sm w-full mx-4 ${isClosingModal ? 'animate-spring-out' : 'animate-spring-in'}`}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center gap-3 text-monkey-main mb-4">
+                    <FileStack size={24} />
+                    <h3 className="text-xl font-bold">Import Conflict</h3>
+                </div>
+                <p className="text-monkey-sub mb-6 text-sm">
+                    You have existing words in your workspace. How would you like to handle the incoming Forge file?
+                </p>
+                <div className="flex flex-col gap-3">
+                    <button 
+                        onClick={() => handleImportChoice('merge')}
+                        className="flex items-center justify-center gap-2 px-4 py-3 rounded bg-[#323437] border border-monkey-sub/20 text-monkey-text hover:border-monkey-main hover:text-monkey-main transition-colors group"
+                    >
+                        <CopyPlus size={18} className="text-monkey-sub group-hover:text-monkey-main" />
+                        <span className="font-bold">Merge with current</span>
+                    </button>
+                    <button 
+                        onClick={() => handleImportChoice('overwrite')}
+                        className="flex items-center justify-center gap-2 px-4 py-3 rounded bg-monkey-error/10 border border-monkey-error/30 text-monkey-error hover:bg-monkey-error hover:text-white transition-colors group"
+                    >
+                        <Replace size={18} />
+                        <span className="font-bold">Overwrite everything</span>
+                    </button>
+                    <button 
+                        onClick={handleCloseImportModal}
+                        className="text-monkey-sub hover:text-monkey-text text-sm mt-2 underline decoration-monkey-sub/30"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && createPortal(
+        <div 
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingDeleteModal ? 'opacity-0' : 'opacity-100'}`}
+            onClick={(e) => { e.stopPropagation(); closeDeleteModal(); }}
+        >
+            <div 
+                className={`bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl max-w-sm w-full mx-4 ${isClosingDeleteModal ? 'animate-spring-out' : 'animate-spring-in'}`}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center gap-3 text-monkey-error mb-4">
+                    <AlertTriangle size={24} />
+                    <h3 className="text-xl font-bold">Delete File?</h3>
+                </div>
+                <p className="text-monkey-sub mb-6 text-sm">
+                    Are you sure you want to remove <span className="text-monkey-text font-bold">"{getSourceName(sourceToDelete)}"</span>? All associated words and progress will be lost.
+                </p>
+                <div className="flex justify-end gap-3">
+                    <button 
+                        onClick={closeDeleteModal}
+                        className="px-4 py-2 rounded text-monkey-sub hover:text-monkey-text hover:bg-monkey-sub/10 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={confirmDeleteSource}
+                        className="px-4 py-2 rounded bg-monkey-error text-white hover:bg-red-600 transition-colors font-bold"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
       )}
     </div>
   );
