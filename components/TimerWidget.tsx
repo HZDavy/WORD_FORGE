@@ -439,35 +439,37 @@ export const TimerWidget: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Main Digital Display - Wrapped in Screen Container */}
-                <div className="absolute top-0 right-24 z-40 flex flex-col w-40 pointer-events-none">
+                {/* Main Digital Display - Reverted to floating text */}
+                <div className="absolute top-6 right-24 z-40 flex flex-col w-52 pointer-events-none items-end">
                     
-                    {/* Fixed Display Box */}
-                    <div className="w-full bg-[#252628] rounded-b-xl border-x border-b border-black/50 border-t-0 p-3 flex flex-col items-end z-20 pointer-events-auto">
-                        <div className="text-[10px] font-bold text-monkey-sub tracking-widest mb-1 w-full text-right">{getDialLabel()}</div>
-                        <div className="text-4xl font-mono font-bold text-monkey-main tracking-tighter w-full text-right">
-                            {getDisplayTime()}
-                        </div>
+                    {/* Floating Text Display - Row 1: Label + Controls */}
+                    <div className="flex flex-row items-center gap-3 z-20 pointer-events-auto mb-1">
+                        <div className="text-[10px] font-bold text-monkey-sub tracking-widest">{getDialLabel()}</div>
+                        
+                        {/* Pomo Controls */}
+                        {mode === 'POMODORO' && (
+                            <div className="flex flex-row items-center gap-2 select-none">
+                                <button 
+                                    onClick={() => handlePomoSwitch('STUDY')}
+                                    className={`text-[10px] font-bold uppercase transition-colors ${pomoEditTarget === 'STUDY' ? 'text-monkey-main' : 'text-monkey-sub/40 hover:text-monkey-sub'}`}
+                                >
+                                    FOCUS
+                                </button>
+                                <span className="text-monkey-sub/40 text-[10px]">/</span>
+                                <button 
+                                    onClick={() => handlePomoSwitch('REST')}
+                                    className={`text-[10px] font-bold uppercase transition-colors ${pomoEditTarget === 'REST' ? 'text-blue-400' : 'text-monkey-sub/40 hover:text-monkey-sub'}`}
+                                >
+                                    REST
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Pomo Controls - Horizontal Text Below Box */}
-                    {mode === 'POMODORO' && (
-                        <div className="flex flex-row items-center mt-2 pl-2 gap-2 pointer-events-auto select-none">
-                            <button 
-                                onClick={() => handlePomoSwitch('STUDY')}
-                                className={`text-sm font-bold uppercase transition-colors ${pomoEditTarget === 'STUDY' ? 'text-monkey-main' : 'text-monkey-sub/40 hover:text-monkey-sub'}`}
-                            >
-                                FOCUS
-                            </button>
-                            <span className="text-monkey-sub/40 text-sm">/</span>
-                            <button 
-                                onClick={() => handlePomoSwitch('REST')}
-                                className={`text-sm font-bold uppercase transition-colors ${pomoEditTarget === 'REST' ? 'text-blue-400' : 'text-monkey-sub/40 hover:text-monkey-sub'}`}
-                            >
-                                REST
-                            </button>
-                        </div>
-                    )}
+                    {/* Row 2: Time */}
+                    <div className="text-4xl font-mono font-bold text-monkey-main tracking-tighter drop-shadow-sm pointer-events-auto">
+                        {getDisplayTime()}
+                    </div>
                 </div>
 
             </div>
