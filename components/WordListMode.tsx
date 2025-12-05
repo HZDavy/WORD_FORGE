@@ -1,8 +1,7 @@
-
-
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { VocabularyItem } from '../types';
-import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle, Keyboard } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -18,6 +17,11 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   const [visibleDefs, setVisibleDefs] = useState<Set<string>>(new Set());
   const [isBulkToggling, setIsBulkToggling] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showSelection, setShowSelection] = useState(false);
+  const [isSelectionModeEnabled, setIsSelectionModeEnabled] = useState(false);
+  
+  const selectionTimerRef = useRef<number | null>(null);
   
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
@@ -27,6 +31,30 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   const filteredData = useMemo(() => {
     return data.filter(item => activeLevels.has(item.level));
   }, [data, activeLevels]);
+
+  // Clamp index if list shrinks
+  useEffect(() => {
+     if (selectedIndex >= filteredData.length && filteredData.length > 0) {
+         setSelectedIndex(Math.max(0, filteredData.length - 1));
+     }
+  }, [filteredData.length]);
+
+  // Handle explicit reset when changing filters
+  useEffect(() => {
+      setSelectedIndex(0);
+  }, [activeLevels]);
+
+  const wakeSelection = useCallback(() => {
+      if (!isSelectionModeEnabled) return;
+      
+      setShowSelection(true);
+      if (selectionTimerRef.current) {
+          window.clearTimeout(selectionTimerRef.current);
+      }
+      selectionTimerRef.current = window.setTimeout(() => {
+          setShowSelection(false);
+      }, 3000); // Hide after 3 seconds
+  }, [isSelectionModeEnabled]);
 
   const toggleFilter = (level: number) => {
     setActiveLevels(prev => {
@@ -43,9 +71,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   };
 
   const confirmReset = () => {
-      // 1. Reset global data
       onResetLevels();
-      // 2. Force filter to include Level 0 immediately so the list doesn't appear empty
       setActiveLevels(new Set([0, 1, 2, 3]));
       setShowResetConfirm(false);
   };
@@ -56,7 +82,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     setVisibleDefs(new Set()); 
   };
 
-  const toggleIndividual = (id: string) => {
+  const toggleIndividual = (id: string, idx: number) => {
     setIsBulkToggling(false);
     setVisibleDefs(prev => {
       const next = new Set(prev);
@@ -64,21 +90,39 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       else next.add(id);
       return next;
     });
+    
+    if (isSelectionModeEnabled) {
+        setSelectedIndex(idx);
+        wakeSelection();
+    }
   };
 
-  const handleLevelClick = (e: React.MouseEvent, id: string, level: number) => {
+  const handleLevelClick = (e: React.MouseEvent, id: string, level: number, idx: number) => {
       e.stopPropagation();
       onUpdateLevel(id, level);
+      if (isSelectionModeEnabled) {
+        setSelectedIndex(idx);
+        wakeSelection();
+      }
   };
   
-  const handleWordCycle = (item: VocabularyItem) => {
+  const handleWordCycle = (item: VocabularyItem, idx: number) => {
       const nextLevel = item.level >= 3 ? 0 : item.level + 1;
       onUpdateLevel(item.id, nextLevel);
+      
+      if (isSelectionModeEnabled) {
+        setSelectedIndex(idx);
+        wakeSelection();
+      }
   };
 
-  const handleLightSwipeStart = (e: React.TouchEvent) => {
+  const handleLightSwipeStart = (e: React.TouchEvent, idx: number) => {
       lightSwipeStartX.current = e.touches[0].clientX;
       lastLightUpdateX.current = e.touches[0].clientX;
+      if (isSelectionModeEnabled) {
+          setSelectedIndex(idx);
+          wakeSelection();
+      }
   };
 
   const handleLightSwipeMove = (e: React.TouchEvent, item: VocabularyItem) => {
@@ -109,20 +153,88 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       lastLightUpdateX.current = null;
   };
 
+  const handleContainerClick = () => {
+      setShowSelection(false);
+  };
+
+  const handleRowClick = (e: React.MouseEvent, index: number) => {
+      e.stopPropagation(); 
+      if (!isSelectionModeEnabled) return;
+      setSelectedIndex(index);
+      wakeSelection();
+  };
+
+  const toggleSelectionMode = () => {
+      const newState = !isSelectionModeEnabled;
+      setIsSelectionModeEnabled(newState);
+      if (newState) {
+          setShowSelection(true);
+          wakeSelection();
+      } else {
+          setShowSelection(false);
+      }
+  };
+
+  // Keyboard Handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-       if (e.code === 'Escape') onExit();
+       if (e.code === 'Escape') {
+           onExit();
+           return;
+       }
+
+       if (!isSelectionModeEnabled) return;
+
+       if (e.code === 'ArrowDown') {
+           e.preventDefault();
+           wakeSelection();
+           setSelectedIndex(prev => Math.min(prev + 1, filteredData.length - 1));
+       } else if (e.code === 'ArrowUp') {
+           e.preventDefault();
+           wakeSelection();
+           setSelectedIndex(prev => Math.max(prev - 1, 0));
+       } else if (e.code === 'Space') {
+           e.preventDefault();
+           wakeSelection();
+           const item = filteredData[selectedIndex];
+           if (item) toggleIndividual(item.id, selectedIndex);
+       } else if (e.code === 'ArrowRight') {
+           e.preventDefault();
+           wakeSelection();
+           const item = filteredData[selectedIndex];
+           if (item && item.level < 3) onUpdateLevel(item.id, item.level + 1);
+       } else if (e.code === 'ArrowLeft') {
+           e.preventDefault();
+           wakeSelection();
+           const item = filteredData[selectedIndex];
+           if (item && item.level > 0) onUpdateLevel(item.id, item.level - 1);
+       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onExit]);
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+    };
+  }, [onExit, filteredData, selectedIndex, onUpdateLevel, wakeSelection, isSelectionModeEnabled]);
+
+  // Scroll current item into view
+  useEffect(() => {
+      if (filteredData.length > 0 && showSelection && isSelectionModeEnabled) {
+          const el = document.getElementById(`word-row-${selectedIndex}`);
+          if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+      }
+  }, [selectedIndex, filteredData, showSelection, isSelectionModeEnabled]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col h-full pt-4 relative">
-      
-      {/* Custom Confirmation Modal - Fixed Full Screen */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div 
+        className="w-full max-w-4xl mx-auto flex flex-col h-full pt-4 relative animate-game-pop-in"
+        onClick={handleContainerClick}
+    >
+      {/* Confirmation Modal */}
+      {showResetConfirm && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm touch-none">
           <div className="bg-[#2c2e31] border border-monkey-sub/30 p-6 rounded-xl shadow-2xl max-w-sm w-full animate-pop-in mx-4">
             <div className="flex items-center gap-3 text-monkey-error mb-4">
               <AlertTriangle size={24} />
@@ -133,25 +245,28 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             </p>
             <div className="flex justify-end gap-3">
               <button 
-                onClick={() => setShowResetConfirm(false)}
+                onClick={(e) => { e.stopPropagation(); setShowResetConfirm(false); }}
                 className="px-4 py-2 rounded text-monkey-sub hover:text-monkey-text hover:bg-monkey-sub/10 transition-colors"
               >
                 Cancel
               </button>
               <button 
-                onClick={confirmReset}
+                onClick={(e) => { e.stopPropagation(); confirmReset(); }}
                 className="px-4 py-2 rounded bg-monkey-error text-white hover:bg-red-600 transition-colors font-bold"
               >
                 Extinguish
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Header / Toolbar */}
-      <div className="flex flex-col gap-4 mb-4 border-b border-monkey-sub/20 bg-monkey-bg sticky top-0 z-20 py-2">
-        
+      <div 
+        className="flex flex-col gap-4 mb-4 border-b border-monkey-sub/20 bg-monkey-bg sticky top-0 z-20 py-2"
+        onClick={(e) => e.stopPropagation()} 
+      >
         <div className="flex justify-between items-center">
             <div>
                 <h2 className="text-2xl font-bold text-monkey-main">Word List</h2>
@@ -176,8 +291,8 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
-            <button onClick={onShuffle} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16}/></button>
-            <button onClick={onRestore} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Restore"><RotateCcw size={16}/></button>
+            <button onClick={() => { onShuffle(); setSelectedIndex(0); }} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16}/></button>
+            <button onClick={() => { onRestore(); setSelectedIndex(0); }} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Restore"><RotateCcw size={16}/></button>
             
             <div className="w-px h-6 bg-monkey-sub/20 mx-1"></div>
             
@@ -187,6 +302,14 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                 title="Extinguish All Lights (Reset to Level 0)"
             >
                 <LightbulbOff size={16}/>
+            </button>
+
+            <button 
+                onClick={toggleSelectionMode}
+                className={`p-2 rounded transition-colors ${isSelectionModeEnabled ? 'bg-[#3e4044] text-gray-200 shadow-inner' : 'bg-[#2c2e31] text-monkey-sub hover:text-monkey-text'}`}
+                title="Toggle Keyboard/Selection Mode"
+            >
+                <Keyboard size={16} />
             </button>
 
             <div className="flex-grow"></div>
@@ -216,44 +339,46 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             {/* Rows */}
             {filteredData.map((item, idx) => {
                 const isDefVisible = showAllDefs || visibleDefs.has(item.id);
+                const isSelected = isSelectionModeEnabled && showSelection && idx === selectedIndex;
 
                 return (
                     <div 
-                        key={item.id} 
-                        className="flex flex-col p-4 bg-[#2c2e31] rounded-lg border border-monkey-sub/10 md:bg-transparent md:border-0 md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b md:border-monkey-sub/10"
+                        key={item.id}
+                        id={`word-row-${idx}`}
+                        onClick={(e) => handleRowClick(e, idx)} 
+                        className={`flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}`}
                     >
-                        {/* Traffic Lights Column (Swipeable) */}
+                        {/* Traffic Lights Column */}
                         <div 
                             className="flex justify-between items-center mb-2 md:mb-0 md:justify-center gap-1 touch-none cursor-ew-resize md:py-3"
-                            onTouchStart={handleLightSwipeStart}
+                            onTouchStart={(e) => handleLightSwipeStart(e, idx)}
                             onTouchMove={(e) => handleLightSwipeMove(e, item)}
                             onTouchEnd={handleLightSwipeEnd}
                         >
-                            {/* Mobile Label */}
                             <span className="text-xs text-monkey-sub font-bold uppercase md:hidden">Level</span>
                              <div className="flex gap-1">
                                 {[1, 2, 3].map(l => (
                                     <div 
                                         key={l}
-                                        onClick={(e) => handleLevelClick(e, item.id, item.level === l ? l - 1 : l)}
+                                        onClick={(e) => handleLevelClick(e, item.id, item.level === l ? l - 1 : l, idx)}
                                         className={`w-3 h-3 md:w-2 md:h-2 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
                                     ></div>
                                 ))}
                              </div>
                         </div>
 
-                        {/* Word Column (Click to Cycle) */}
+                        {/* Word Column */}
                         <div 
-                            className="text-xl md:text-lg font-bold text-monkey-text select-text cursor-pointer hover:text-white transition-colors mb-2 md:mb-0 md:py-3"
-                            onClick={() => handleWordCycle(item)}
+                            className="text-xl md:text-lg font-bold text-monkey-text select-text hover:text-white transition-colors mb-2 md:mb-0 md:py-3"
+                            onClick={(e) => { e.stopPropagation(); handleWordCycle(item, idx); }}
                         >
                             {item.word}
                         </div>
 
-                        {/* Definition Column (Redacted) */}
+                        {/* Definition Column */}
                         <div 
                             className="cursor-pointer relative group leading-relaxed md:py-3 min-h-[1.5em]"
-                            onClick={() => toggleIndividual(item.id)}
+                            onClick={(e) => { e.stopPropagation(); toggleIndividual(item.id, idx); }}
                         >
                             <span 
                               className={`
@@ -276,6 +401,16 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             })}
         </div>
       </div>
+      
+      {/* Legend */}
+      {isSelectionModeEnabled && (
+          <div className="mt-2 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex pb-2 animate-fade-in">
+              <span>↑/↓: Nav</span>
+              <span>Space: Reveal</span>
+              <span>←/→: Adjust Level</span>
+              <span>Esc: Exit</span>
+          </div>
+      )}
     </div>
   );
 };

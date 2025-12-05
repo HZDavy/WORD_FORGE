@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
-import { ChevronUp, ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -206,6 +205,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   };
 
   const handleScrubStart = (e: React.PointerEvent) => {
+    e.preventDefault();
     setIsScrubbing(true);
     e.currentTarget.setPointerCapture(e.pointerId);
     handleScrub(e.clientX);
@@ -224,20 +224,26 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   // -- Keyboard Controls --
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.code === 'ArrowDown') {
         e.preventDefault(); 
         toggleReveal();
       } else if (e.code === 'ArrowRight') {
         if (index < filteredData.length - 1) handleNextData();
       } else if (e.code === 'ArrowLeft') {
         if (index > 0) handlePrevData();
+      } else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (currentCard) {
+            const nextLevel = currentCard.level >= 3 ? 0 : currentCard.level + 1;
+            onUpdateLevel(currentCard.id, nextLevel);
+        }
       } else if (e.code === 'Escape') {
         onExit();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleReveal, handleNextData, handlePrevData, onExit, index, filteredData.length]);
+  }, [toggleReveal, handleNextData, handlePrevData, onExit, index, filteredData.length, currentCard, onUpdateLevel]);
 
 
   // -- Styles --
@@ -256,9 +262,20 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   const bgScale = 0.95 + (progress * 0.05); 
   const bgOpacity = 0.5 + (progress * 0.5); 
 
+  // Progress Bar Styles
+  const progressStyle = { 
+    width: `${filteredData.length > 0 ? ((index + 1) / filteredData.length) * 100 : 0}%`,
+    transition: isScrubbing ? 'none' : 'width 0.2s ease-out' 
+  };
+  
+  const thumbStyle = {
+      left: `${filteredData.length > 0 ? ((index + 1) / filteredData.length) * 100 : 0}%`,
+      transition: isScrubbing ? 'none' : 'left 0.2s ease-out'
+  };
+
   if (filteredData.length === 0) {
       return (
-          <div className="flex flex-col items-center justify-center h-full text-center">
+          <div className="flex flex-col items-center justify-center h-full text-center animate-game-pop-in">
               <h2 className="text-2xl font-bold text-monkey-sub mb-4">No cards in selected levels</h2>
               <div className="flex gap-2 justify-center">
                   {[0,1,2,3].map(l => (
@@ -272,7 +289,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-2 md:px-4 touch-none select-none py-2 md:py-6">
+    <div className="flex flex-col items-center justify-center w-full max-w-2xl mx-auto h-full px-2 md:px-4 touch-none select-none py-2 md:py-6 animate-game-pop-in">
       
       {/* Top Controls: Filter & Shuffle */}
       <div className="w-full flex justify-between items-center mb-4 z-30">
@@ -308,31 +325,24 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
       {/* Interactive Progress Bar */}
       <div 
         ref={progressBarRef}
-        className="w-full h-4 relative flex items-center mb-4 cursor-pointer group touch-none"
+        className="w-full h-4 relative flex items-center mb-4 cursor-pointer group touch-none select-none py-2" 
         onPointerDown={handleScrubStart}
         onPointerMove={handleScrubMove}
         onPointerUp={handleScrubEnd}
         onPointerLeave={handleScrubEnd}
       >
-        {/* Track */}
         <div className={`w-full bg-monkey-sub/30 rounded-full transition-all duration-200 ${isScrubbing ? 'h-2' : 'h-1 group-hover:h-2'}`}></div>
-        
-        {/* Fill */}
         <div 
-          className={`absolute left-0 bg-monkey-main rounded-full transition-all duration-100 ${isScrubbing ? 'h-2' : 'h-1 group-hover:h-2'}`}
-          style={{ width: `${((index + 1) / filteredData.length) * 100}%` }}
+          className={`absolute left-0 bg-monkey-main rounded-full ${isScrubbing ? 'h-2' : 'h-1 group-hover:h-2'}`}
+          style={progressStyle}
         />
-
-        {/* Thumb (Visible on Drag/Hover) */}
         <div 
-            className={`absolute w-4 h-4 bg-white rounded-full shadow-lg transform -translate-x-1/2 transition-all duration-150 ${isScrubbing ? 'scale-100 opacity-100' : 'scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100'}`}
-            style={{ left: `${((index + 1) / filteredData.length) * 100}%` }}
+            className={`absolute w-4 h-4 bg-white rounded-full shadow-lg transform -translate-x-1/2 pointer-events-none transition-opacity duration-150 ${isScrubbing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}
+            style={thumbStyle}
         />
-        
-        {/* Tooltip on Drag */}
         <div 
-             className={`absolute -top-8 px-2 py-1 bg-monkey-bg border border-monkey-main text-monkey-main text-xs rounded transform -translate-x-1/2 transition-opacity duration-150 ${isScrubbing ? 'opacity-100' : 'opacity-0'}`}
-             style={{ left: `${((index + 1) / filteredData.length) * 100}%` }}
+             className={`absolute -top-8 px-2 py-1 bg-monkey-bg border border-monkey-main text-monkey-main text-xs rounded transform -translate-x-1/2 transition-opacity duration-150 pointer-events-none ${isScrubbing ? 'opacity-100' : 'opacity-0'}`}
+             style={thumbStyle}
         >
             {index + 1}
         </div>
@@ -390,20 +400,27 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
                 {/* Content Container */}
                 <div className="relative w-full h-full flex flex-col items-center justify-center p-6 md:p-8 text-center">
                     
-                    {/* Definition Layer */}
-                     <div 
-                        className={`absolute flex flex-col items-center justify-center w-full px-2 md:px-6 transition-all duration-300 transform mt-5 ${isRevealed ? 'opacity-100 translate-y-8 md:translate-y-12' : 'opacity-0 translate-y-12'}`}
-                     >
-                        <div className="w-8 h-1 bg-monkey-sub/20 mb-3 rounded-full"></div>
-                        <p className="text-lg md:text-xl text-gray-200 leading-relaxed max-h-[40vh] md:max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
-                    </div>
-
-                    {/* English Word Layer */}
-                    <div 
-                        className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-12 md:-translate-y-16' : 'translate-y-0'}`}
-                    >
+                    {/* English Word */}
+                    <div className="flex flex-col items-center justify-center mb-6">
                         <span className="text-monkey-sub text-xs uppercase tracking-widest mb-4 opacity-50">Word</span>
                         <h2 className="text-3xl md:text-5xl font-bold text-monkey-main break-words max-w-full">{currentCard.word}</h2>
+                    </div>
+
+                    {/* Definition Layer (Redacted Style) */}
+                     <div className="flex flex-col items-center justify-center w-full px-2 md:px-6">
+                        <p className="text-lg md:text-xl leading-relaxed max-h-[40vh] md:max-h-40 overflow-y-auto custom-scrollbar text-center">
+                            <span 
+                              className={`
+                                rounded px-1
+                                ${isRevealed 
+                                  ? 'bg-transparent text-gray-200' 
+                                  : 'bg-[#3f4145] text-transparent select-none' 
+                                }
+                              `}
+                            >
+                                {currentCard.definition}
+                            </span>
+                        </p>
                     </div>
 
                 </div>
@@ -421,14 +438,12 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
           <ArrowLeft size={18} /> <span className="hidden md:inline">Prev</span>
         </button>
 
+        {/* Reveal Button - Wide with Hollow Circle */}
         <button 
           onClick={(e) => { e.stopPropagation(); toggleReveal(); }}
-          className="flex items-center justify-center w-20 md:w-32 py-3 rounded-lg bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95"
+          className="flex items-center justify-center w-24 h-16 rounded-xl bg-monkey-sub/10 text-monkey-text hover:bg-monkey-sub/20 transition-all active:scale-95 border border-monkey-sub/10"
         >
-          <ChevronUp 
-            size={24} 
-            className={`transition-transform duration-300 ${isRevealed ? 'rotate-180' : ''}`} 
-          />
+          <div className="w-4 h-4 rounded-full border-2 border-monkey-text bg-transparent"></div>
         </button>
 
         <button 
@@ -438,6 +453,14 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
         >
           <span className="hidden md:inline">Next</span> <ArrowRight size={18} />
         </button>
+      </div>
+
+      {/* Keyboard Legend */}
+      <div className="mt-4 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex">
+          <span>Space/↓: Flip</span>
+          <span>↑: Mark Level</span>
+          <span>←/→: Nav</span>
+          <span>Esc: Exit</span>
       </div>
     </div>
   );

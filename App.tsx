@@ -7,6 +7,7 @@ import { QuizMode } from './components/QuizMode';
 import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
 import { MatrixRain } from './components/MatrixRain';
+import { TimerWidget } from './components/TimerWidget';
 import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks } from 'lucide-react';
 
 const App = () => {
@@ -153,11 +154,11 @@ const App = () => {
 
     // MENU
     return (
-      <div className="flex flex-col items-center w-full max-w-4xl mx-auto px-4 md:px-0 h-full overflow-y-auto custom-scrollbar z-10 relative">
+      <div className="flex flex-col items-center justify-center min-h-full w-full max-w-4xl mx-auto px-4 md:px-0 overflow-y-auto custom-scrollbar z-10 relative">
         <MatrixRain />
         
         {vocab.length === 0 ? (
-          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 mt-20 animate-pop-in">
+          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
             <label className="flex flex-col items-center cursor-pointer">
               <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
               <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload File</span>
@@ -171,7 +172,7 @@ const App = () => {
             )}
           </div>
         ) : (
-          <div className="w-full flex-shrink-0 pb-10 mt-10">
+          <div className="w-full flex-shrink-0 pb-10">
             <div className="flex justify-between items-center mb-6 px-4 border-b border-monkey-sub/10 pb-2 bg-[#2c2e31]/50 backdrop-blur rounded p-2 animate-fade-in-up">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -255,18 +256,15 @@ const App = () => {
       onTouchStart={handleGlobalTouchStart}
       onTouchEnd={handleGlobalTouchEnd}
     >
-      {/* Top Bar */}
-      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4 flex-shrink-0 z-20 bg-monkey-bg/80 backdrop-blur-sm">
+      {/* Top Bar - Solid BG */}
+      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4 flex-shrink-0 z-20 bg-monkey-bg">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={handleLogoClick}>
             <Flame className={`text-monkey-main transition-transform duration-300 ${rebootAnim ? 'animate-spin' : 'group-hover:scale-110'}`} size={24} />
             <span className={`font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-all ${rebootAnim ? 'opacity-50' : 'opacity-100'}`}>词炼</span>
         </div>
-        <div className="flex gap-4 text-xs text-monkey-sub font-bold">
-            <span className="bg-monkey-sub/10 px-2 py-1 rounded border border-monkey-sub/20">
-              <span className="hidden sm:inline">[esc] menu</span>
-              <span className="sm:hidden">menu</span>
-            </span>
-        </div>
+        
+        {/* Timer Widget Integration */}
+        <TimerWidget />
       </nav>
 
       {/* Main Content Area using Flexbox for proper internal scrolling */}

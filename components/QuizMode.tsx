@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { VocabularyItem } from '../types';
 import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw } from 'lucide-react';
@@ -124,7 +123,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
   return (
     <div 
-      className="w-full max-w-2xl mx-auto flex flex-col items-center h-full pt-4 md:pt-10 px-2 md:px-4"
+      className="w-full max-w-2xl mx-auto flex flex-col items-center h-full pt-4 md:pt-10 px-2 md:px-4 animate-game-pop-in"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

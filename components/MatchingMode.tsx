@@ -153,7 +153,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col items-center h-full pt-6">
+    <div className="w-full max-w-6xl mx-auto flex flex-col items-center h-full pt-6 animate-game-pop-in">
       <div className="flex justify-between w-full mb-6 border-b border-monkey-sub/20 pb-2 px-4 items-center">
         <div>
             <span className="text-monkey-main font-bold font-mono text-lg">Round {round + 1} / {totalRounds}</span>
@@ -196,6 +196,11 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
              </div>
            )
         })}
+      </div>
+      
+      {/* Keyboard Legend */}
+      <div className="mb-2 text-[10px] text-monkey-sub/30 hidden md:block">
+          <span>Esc: Exit</span>
       </div>
     </div>
   );
