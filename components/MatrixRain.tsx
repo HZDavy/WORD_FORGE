@@ -10,15 +10,31 @@ export const MatrixRain: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+    // Variables to be updated on resize
+    let width = 0;
+    let height = 0;
+    let columns = 0;
+    let drops: number[] = [];
 
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%"\'#&_(),.;:?!\\|{}<>[]^~';
     const fontSize = 14;
-    const columns = Math.ceil(width / fontSize);
-    const drops: number[] = new Array(columns).fill(1);
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%"\'#&_(),.;:?!\\|{}<>[]^~';
 
-    const colors = ['#646669', '#3e4044', '#d1d0c5', '#e2b714'];
+    const initMatrix = () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        columns = Math.ceil(width / fontSize);
+        const maxRows = Math.ceil(height / fontSize);
+        
+        // Initialize drops with random positions to fill screen immediately
+        drops = [];
+        for (let i = 0; i < columns; i++) {
+            // Random start row between 0 and max rows so it looks like it's already raining
+            drops[i] = Math.floor(Math.random() * maxRows);
+        }
+    };
+
+    // Initial setup
+    initMatrix();
 
     const draw = () => {
       // Trail effect
@@ -34,11 +50,16 @@ export const MatrixRain: React.FC = () => {
         const isHighlight = Math.random() > 0.98;
         ctx.fillStyle = isHighlight ? '#e2b714' : '#4b4d50'; 
         
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        const x = i * fontSize;
+        const y = drops[i] * fontSize;
 
-        if (drops[i] * fontSize > height && Math.random() > 0.975) {
+        ctx.fillText(text, x, y);
+
+        // Reset drop to top randomly if it goes off screen
+        if (y > height && Math.random() > 0.975) {
           drops[i] = 0;
         }
+        
         drops[i]++;
       }
     };
@@ -52,8 +73,8 @@ export const MatrixRain: React.FC = () => {
     animate();
 
     const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+      // Re-initialize on resize to ensure full screen coverage
+      initMatrix();
     };
 
     window.addEventListener('resize', handleResize);
