@@ -255,7 +255,7 @@ export const TimerWidget: React.FC = () => {
   const getDialLabel = () => {
       if (mode === 'STOPWATCH') return "CHRONO";
       if (mode === 'TIMER') return "TIMER";
-      if (mode === 'POMODORO') return `POMO · ${pomoEditTarget}`;
+      if (mode === 'POMODORO') return `POMO`;
       return "";
   }
 
@@ -300,7 +300,7 @@ export const TimerWidget: React.FC = () => {
   const rotaryTicks = useMemo(() => {
     const items = [];
     const radius = 340;
-    const totalTicks = 60; // 360 degrees / 6 degrees
+    const totalTicks = 120; // Denser ticks
 
     for (let i = 0; i < totalTicks; i++) {
         const angleDeg = i * (360 / totalTicks);
@@ -321,7 +321,7 @@ export const TimerWidget: React.FC = () => {
                 key={`r-${i}`}
                 x1={x1} y1={y1} x2={x2} y2={y2}
                 stroke="white"
-                strokeWidth="2"
+                strokeWidth="1"
                 opacity={0.8}
             />
         )
@@ -440,33 +440,34 @@ export const TimerWidget: React.FC = () => {
                 </div>
 
                 {/* Main Digital Display - Wrapped in Screen Container */}
-                <div className="absolute top-0 right-24 z-40 flex flex-col items-center pointer-events-none w-40">
+                <div className="absolute top-0 right-24 z-40 flex flex-col w-40 pointer-events-none">
                     
                     {/* Fixed Display Box */}
-                    <div className="w-full bg-[#252628] rounded-b-xl border-x border-b border-black/50 border-t-0 p-3 flex flex-col items-end z-20 relative">
+                    <div className="w-full bg-[#252628] rounded-b-xl border-x border-b border-black/50 border-t-0 p-3 flex flex-col items-end z-20 pointer-events-auto">
                         <div className="text-[10px] font-bold text-monkey-sub tracking-widest mb-1 w-full text-right">{getDialLabel()}</div>
                         <div className="text-4xl font-mono font-bold text-monkey-main tracking-tighter w-full text-right">
                             {getDisplayTime()}
                         </div>
                     </div>
 
-                    {/* Pomo Extension Drawer - Slides out from bottom */}
-                    <div 
-                         className={`w-full bg-[#252628] border-x border-b border-black/50 rounded-b-lg -mt-2 pt-3 pb-1 px-1 transition-all duration-300 ease-out origin-top pointer-events-auto overflow-hidden flex justify-center gap-1 shadow-none z-10 ${mode === 'POMODORO' && !isRunning ? 'max-h-12 opacity-100 translate-y-0' : 'max-h-0 opacity-0 -translate-y-2'}`}
-                    >
-                         <button 
-                            onClick={() => handlePomoSwitch('STUDY')}
-                            className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md transition-all flex-1 text-center ${pomoEditTarget === 'STUDY' ? 'bg-monkey-main text-monkey-bg' : 'text-monkey-sub hover:text-monkey-text'}`}
-                         >
-                             Study
-                         </button>
-                         <button 
-                            onClick={() => handlePomoSwitch('REST')}
-                            className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md transition-all flex-1 text-center ${pomoEditTarget === 'REST' ? 'bg-blue-400 text-monkey-bg' : 'text-monkey-sub hover:text-monkey-text'}`}
-                         >
-                             Rest
-                         </button>
-                    </div>
+                    {/* Pomo Controls - Horizontal Text Below Box */}
+                    {mode === 'POMODORO' && (
+                        <div className="flex flex-row items-center mt-2 pl-2 gap-2 pointer-events-auto select-none">
+                            <button 
+                                onClick={() => handlePomoSwitch('STUDY')}
+                                className={`text-sm font-bold uppercase transition-colors ${pomoEditTarget === 'STUDY' ? 'text-monkey-main' : 'text-monkey-sub/40 hover:text-monkey-sub'}`}
+                            >
+                                FOCUS
+                            </button>
+                            <span className="text-monkey-sub/40 text-sm">/</span>
+                            <button 
+                                onClick={() => handlePomoSwitch('REST')}
+                                className={`text-sm font-bold uppercase transition-colors ${pomoEditTarget === 'REST' ? 'text-blue-400' : 'text-monkey-sub/40 hover:text-monkey-sub'}`}
+                            >
+                                REST
+                            </button>
+                        </div>
+                    )}
                 </div>
 
             </div>
