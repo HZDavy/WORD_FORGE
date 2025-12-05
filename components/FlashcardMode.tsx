@@ -1,16 +1,19 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
 import { ChevronUp, ArrowLeft, ArrowRight, Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
+  initialIndex?: number;
   onExit: () => void;
   onUpdateLevel: (id: string, level: number) => void;
   onShuffle: () => void;
   onRestore: () => void;
+  onSaveProgress: (index: number) => void;
 }
 
-export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onShuffle, onRestore }) => {
+export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit, onUpdateLevel, onShuffle, onRestore, onSaveProgress }) => {
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   
@@ -18,7 +21,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
     return data.filter(item => activeLevels.has(item.level));
   }, [data, activeLevels]);
 
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(initialIndex < filteredData.length ? initialIndex : 0);
   const [isRevealed, setIsRevealed] = useState(false);
   
   // Gesture State for Main Card
@@ -26,7 +29,11 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   const [isDragging, setIsDragging] = useState(false);
   const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null);
   const startX = useRef<number | null>(null);
-  const isSwipeGesture = useRef(false); // Tracks if the current interaction was a swipe
+  const isSwipeGesture = useRef(false);
+
+  // Scrubber State
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const progressBarRef = useRef<HTMLDivElement>(null);
 
   // Gesture State for Traffic Lights
   const lightStartX = useRef<number | null>(null);
@@ -35,6 +42,12 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   const currentCard = filteredData[index];
   const nextCard = filteredData[index + 1]; 
 
+  // Save progress whenever index changes
+  useEffect(() => {
+    onSaveProgress(index);
+  }, [index, onSaveProgress]);
+
+  // Adjust index if filtered data changes size
   useEffect(() => {
       if (index >= filteredData.length && filteredData.length > 0) {
           setIndex(0);
@@ -140,11 +153,11 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
     const currentX = e.touches[0].clientX;
     const delta = currentX - startX.current;
     
-    // Deadzone check (10px): Only start dragging logic if moved enough
+    // Deadzone check (10px)
     if (!isDragging) {
         if (Math.abs(delta) > 10) {
             setIsDragging(true);
-            isSwipeGesture.current = true; // Mark as swipe intention
+            isSwipeGesture.current = true;
         }
     }
 
@@ -156,9 +169,8 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   const handleTouchEnd = () => {
     if (startX.current === null || exitDirection) return;
     
-    // Only verify swipe if we were actually dragging (passed deadzone)
     if (isDragging) {
-        const threshold = 60; // 60px swipe threshold
+        const threshold = 60;
 
         if (dragX < -threshold) {
             if (index < filteredData.length - 1) triggerSwipeAnimation('left');
@@ -176,14 +188,38 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-      // If the interaction was a swipe (dragged > 10px), ignore the click event
-      // This prevents accidental flipping when a swipe is cancelled or completed
       if (isSwipeGesture.current) {
           isSwipeGesture.current = false;
           return;
       }
       toggleReveal();
   };
+
+  // -- Scrubber Logic --
+  const handleScrub = (clientX: number) => {
+    if (!progressBarRef.current) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const newIndex = Math.floor(pct * (filteredData.length - 1));
+    setIndex(newIndex);
+    setIsRevealed(false);
+  };
+
+  const handleScrubStart = (e: React.PointerEvent) => {
+    setIsScrubbing(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    handleScrub(e.clientX);
+  };
+
+  const handleScrubMove = (e: React.PointerEvent) => {
+    if (isScrubbing) handleScrub(e.clientX);
+  };
+
+  const handleScrubEnd = (e: React.PointerEvent) => {
+    setIsScrubbing(false);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
 
   // -- Keyboard Controls --
   useEffect(() => {
@@ -206,7 +242,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
 
   // -- Styles --
   const getSwipeStyle = () => {
-    const rotate = dragX * 0.2; // Enhanced rotation
+    const rotate = dragX * 0.2; 
     if (exitDirection === 'left') return { transform: `translate3d(-120vw, 0, 0) rotate(-25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     if (exitDirection === 'right') return { transform: `translate3d(120vw, 0, 0) rotate(25deg)`, opacity: 0, transition: 'all 0.2s ease-in' };
     return { 
@@ -216,10 +252,9 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
     };
   };
 
-  // Background Card Dynamic Styles
   const progress = Math.min(Math.abs(dragX) / 300, 1);
-  const bgScale = 0.95 + (progress * 0.05); // Scales from 0.95 to 1.0
-  const bgOpacity = 0.5 + (progress * 0.5); // Opacity from 0.5 to 1.0
+  const bgScale = 0.95 + (progress * 0.05); 
+  const bgOpacity = 0.5 + (progress * 0.5); 
 
   if (filteredData.length === 0) {
       return (
@@ -270,12 +305,37 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
         <span>{index + 1} / {filteredData.length}</span>
       </div>
       
-      {/* Progress Bar */}
-      <div className="w-full h-1 bg-monkey-sub/30 rounded-full mb-6">
+      {/* Interactive Progress Bar */}
+      <div 
+        ref={progressBarRef}
+        className="w-full h-4 relative flex items-center mb-4 cursor-pointer group touch-none"
+        onPointerDown={handleScrubStart}
+        onPointerMove={handleScrubMove}
+        onPointerUp={handleScrubEnd}
+        onPointerLeave={handleScrubEnd}
+      >
+        {/* Track */}
+        <div className={`w-full bg-monkey-sub/30 rounded-full transition-all duration-200 ${isScrubbing ? 'h-2' : 'h-1 group-hover:h-2'}`}></div>
+        
+        {/* Fill */}
         <div 
-          className="h-full bg-monkey-main transition-all duration-300 rounded-full" 
+          className={`absolute left-0 bg-monkey-main rounded-full transition-all duration-100 ${isScrubbing ? 'h-2' : 'h-1 group-hover:h-2'}`}
           style={{ width: `${((index + 1) / filteredData.length) * 100}%` }}
         />
+
+        {/* Thumb (Visible on Drag/Hover) */}
+        <div 
+            className={`absolute w-4 h-4 bg-white rounded-full shadow-lg transform -translate-x-1/2 transition-all duration-150 ${isScrubbing ? 'scale-100 opacity-100' : 'scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100'}`}
+            style={{ left: `${((index + 1) / filteredData.length) * 100}%` }}
+        />
+        
+        {/* Tooltip on Drag */}
+        <div 
+             className={`absolute -top-8 px-2 py-1 bg-monkey-bg border border-monkey-main text-monkey-main text-xs rounded transform -translate-x-1/2 transition-opacity duration-150 ${isScrubbing ? 'opacity-100' : 'opacity-0'}`}
+             style={{ left: `${((index + 1) / filteredData.length) * 100}%` }}
+        >
+            {index + 1}
+        </div>
       </div>
 
       {/* Scene */}
@@ -310,7 +370,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                 onClick={handleCardClick}
             >
                 
-                {/* Traffic Light Grading (Top Left) */}
+                {/* Traffic Light Grading */}
                 <div 
                     className="absolute top-4 left-4 p-4 -ml-4 -mt-4 flex gap-1 z-30 touch-none" 
                     onClick={(e) => e.stopPropagation()}
@@ -330,7 +390,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                 {/* Content Container */}
                 <div className="relative w-full h-full flex flex-col items-center justify-center p-6 md:p-8 text-center">
                     
-                    {/* Definition Layer (Static, Fades In, Moves Down) */}
+                    {/* Definition Layer */}
                      <div 
                         className={`absolute flex flex-col items-center justify-center w-full px-2 md:px-6 transition-all duration-300 transform mt-5 ${isRevealed ? 'opacity-100 translate-y-8 md:translate-y-12' : 'opacity-0 translate-y-12'}`}
                      >
@@ -338,7 +398,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, on
                         <p className="text-lg md:text-xl text-gray-200 leading-relaxed max-h-[40vh] md:max-h-40 overflow-y-auto custom-scrollbar">{currentCard.definition}</p>
                     </div>
 
-                    {/* English Word Layer (Slides Up) */}
+                    {/* English Word Layer */}
                     <div 
                         className={`relative z-10 flex flex-col items-center justify-center transition-transform duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) ${isRevealed ? '-translate-y-12 md:-translate-y-16' : 'translate-y-0'}`}
                     >

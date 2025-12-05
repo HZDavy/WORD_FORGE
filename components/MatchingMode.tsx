@@ -1,14 +1,15 @@
 
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { VocabularyItem } from '../types';
 import { Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
+  initialRound?: number;
   onExit: () => void;
   onShuffle: () => void;
   onRestore: () => void;
+  onSaveProgress: (round: number) => void;
 }
 
 interface Bubble {
@@ -22,13 +23,17 @@ interface Bubble {
 
 const ITEMS_PER_ROUND = 6; 
 
-export const MatchingMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }) => {
-  const [round, setRound] = useState(0);
+export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, onShuffle, onRestore, onSaveProgress }) => {
+  const [round, setRound] = useState(initialRound);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isWait, setIsWait] = useState(false);
 
   const totalRounds = Math.ceil(data.length / ITEMS_PER_ROUND);
+
+  useEffect(() => {
+    onSaveProgress(round);
+  }, [round, onSaveProgress]);
 
   const restart = () => {
       setRound(0);

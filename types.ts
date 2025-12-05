@@ -21,3 +21,9 @@ export interface GameState {
   vocab: VocabularyItem[];
   mode: GameMode;
 }
+
+export interface GameProgress {
+  flashcard?: { index: number };
+  quiz?: { currentIndex: number; score: number; answeredState: Record<number, number | null> };
+  matching?: { round: number };
+}

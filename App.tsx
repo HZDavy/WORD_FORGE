@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+
+import React, { useState, useCallback, useRef } from 'react';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
-import { VocabularyItem, GameMode } from './types';
+import { VocabularyItem, GameMode, GameProgress } from './types';
 import { FlashcardMode } from './components/FlashcardMode';
 import { QuizMode } from './components/QuizMode';
 import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
+import { MatrixRain } from './components/MatrixRain';
 import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks } from 'lucide-react';
 
 const App = () => {
@@ -12,6 +14,10 @@ const App = () => {
   const [vocab, setVocab] = useState<VocabularyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<GameProgress>({});
+  
+  // Gesture State for Global Edge Swipe
+  const touchStartX = useRef<number | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,6 +49,8 @@ const App = () => {
         setVocab([]);
       } else {
         setVocab(extracted);
+        // Reset progress on new file
+        setProgress({});
       }
     } catch (err) {
       console.error(err);
@@ -53,9 +61,23 @@ const App = () => {
     }
   };
 
-  const resetGame = () => {
+  const resetGame = useCallback(() => {
     setMode(GameMode.MENU);
-  };
+  }, []);
+
+  // -- Persistence Handlers --
+  const saveFlashcardProgress = useCallback((index: number) => {
+    setProgress(prev => ({ ...prev, flashcard: { index } }));
+  }, []);
+
+  const saveQuizProgress = useCallback((state: { currentIndex: number; score: number; answeredState: Record<number, number | null> }) => {
+    setProgress(prev => ({ ...prev, quiz: state }));
+  }, []);
+
+  const saveMatchingProgress = useCallback((round: number) => {
+    setProgress(prev => ({ ...prev, matching: { round } }));
+  }, []);
+
 
   const handleLevelUpdate = useCallback((id: string, newLevel: number) => {
     setVocab(prev => prev.map(item => 
@@ -85,7 +107,7 @@ const App = () => {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="flex flex-col items-center justify-center h-full animate-pulse">
+        <div className="flex flex-col items-center justify-center h-full animate-pulse z-10">
            <div className="relative">
              <div className="w-16 h-16 border-4 border-monkey-sub/30 rounded-full"></div>
              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-monkey-main border-t-transparent rounded-full animate-spin"></div>
@@ -96,27 +118,46 @@ const App = () => {
       );
     }
 
-    if (mode === GameMode.FLASHCARD) return <FlashcardMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onShuffle={handleShuffle} onRestore={handleRestore} />;
-    if (mode === GameMode.QUIZ) return <QuizMode data={vocab} onExit={resetGame} onShuffle={handleShuffle} onRestore={handleRestore} />;
-    if (mode === GameMode.MATCHING) return <MatchingMode data={vocab} onExit={resetGame} onShuffle={handleShuffle} onRestore={handleRestore} />;
+    if (mode === GameMode.FLASHCARD) {
+        return <FlashcardMode 
+                  data={vocab} 
+                  initialIndex={progress.flashcard?.index}
+                  onExit={resetGame} 
+                  onUpdateLevel={handleLevelUpdate} 
+                  onShuffle={handleShuffle} 
+                  onRestore={handleRestore}
+                  onSaveProgress={saveFlashcardProgress}
+               />;
+    }
+    if (mode === GameMode.QUIZ) {
+        return <QuizMode 
+                  data={vocab} 
+                  initialState={progress.quiz}
+                  onExit={resetGame} 
+                  onShuffle={handleShuffle} 
+                  onRestore={handleRestore}
+                  onSaveProgress={saveQuizProgress}
+               />;
+    }
+    if (mode === GameMode.MATCHING) {
+        return <MatchingMode 
+                  data={vocab} 
+                  initialRound={progress.matching?.round}
+                  onExit={resetGame} 
+                  onShuffle={handleShuffle} 
+                  onRestore={handleRestore} 
+                  onSaveProgress={saveMatchingProgress}
+               />;
+    }
     if (mode === GameMode.WORD_LIST) return <WordListMode data={vocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} />;
 
     // MENU
     return (
-      <div className="flex flex-col items-center w-full max-w-4xl mx-auto animate-fade-in-up px-4 md:px-0 h-full overflow-y-auto custom-scrollbar">
-        {/* Stats / Welcome */}
-        <div className="text-center mb-8 md:mb-12 relative mt-4 md:mt-0 flex-shrink-0">
-           <div className="absolute -top-6 md:-top-10 left-1/2 -translate-x-1/2 opacity-10 pointer-events-none">
-             <Flame className="w-24 h-24 md:w-32 md:h-32" />
-           </div>
-           <h1 className="text-5xl md:text-7xl font-bold text-monkey-text mb-2 font-mono tracking-tighter flex items-center justify-center gap-2 md:gap-4">
-             词炼 <span className="text-monkey-main text-lg md:text-2xl align-top bg-monkey-sub/20 px-2 rounded">V7</span>
-           </h1>
-           <p className="text-monkey-sub font-mono tracking-widest text-xs md:text-sm uppercase">The Ultimate Word Forge</p>
-        </div>
-
+      <div className="flex flex-col items-center w-full max-w-4xl mx-auto px-4 md:px-0 h-full overflow-y-auto custom-scrollbar z-10 relative">
+        <MatrixRain />
+        
         {vocab.length === 0 ? (
-          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31] group flex-shrink-0">
+          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 mt-20 animate-pop-in">
             <label className="flex flex-col items-center cursor-pointer">
               <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
               <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload File</span>
@@ -130,8 +171,8 @@ const App = () => {
             )}
           </div>
         ) : (
-          <div className="w-full flex-shrink-0 pb-10">
-            <div className="flex justify-between items-center mb-6 px-4 border-b border-monkey-sub/10 pb-2">
+          <div className="w-full flex-shrink-0 pb-10 mt-10">
+            <div className="flex justify-between items-center mb-6 px-4 border-b border-monkey-sub/10 pb-2 bg-[#2c2e31]/50 backdrop-blur rounded p-2 animate-fade-in-up">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                 <span className="text-monkey-main font-mono text-sm">Loaded {vocab.length} words</span>
@@ -149,24 +190,28 @@ const App = () => {
                 icon={<BookOpen size={24} />}
                 title="Flashcards" 
                 desc="Flip-card study" 
+                delay={100}
                 onClick={() => setMode(GameMode.FLASHCARD)} 
               />
               <MenuCard 
                 icon={<BrainCircuit size={24} />}
                 title="Quiz" 
                 desc="4-choice test" 
+                delay={200}
                 onClick={() => setMode(GameMode.QUIZ)} 
               />
               <MenuCard 
                 icon={<Gamepad2 size={24} />}
                 title="Matching" 
                 desc="Connect pairs" 
+                delay={300}
                 onClick={() => setMode(GameMode.MATCHING)} 
               />
               <MenuCard 
                 icon={<ListChecks size={24} />}
                 title="Word List" 
                 desc="View & Mark" 
+                delay={400}
                 onClick={() => setMode(GameMode.WORD_LIST)} 
               />
             </div>
@@ -176,13 +221,45 @@ const App = () => {
     );
   };
 
+  // Global Touch Handlers for Edge Swipe Back
+  const handleGlobalTouchStart = (e: React.TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleGlobalTouchEnd = (e: React.TouchEvent) => {
+      if (touchStartX.current === null) return;
+      
+      const touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX.current;
+      
+      // Left edge swipe logic
+      // 1. Start must be within left 30px
+      // 2. Drag must be > 100px to right
+      // 3. Must not be in MENU mode
+      if (mode !== GameMode.MENU && touchStartX.current < 40 && deltaX > 100) {
+          resetGame();
+      }
+      touchStartX.current = null;
+  };
+
+  const [rebootAnim, setRebootAnim] = useState(false);
+  const handleLogoClick = () => {
+    setRebootAnim(true);
+    setTimeout(() => setRebootAnim(false), 500);
+    resetGame();
+  }
+
   return (
-    <div className="fixed inset-0 w-full h-full bg-monkey-bg text-monkey-text p-4 md:p-6 font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden">
+    <div 
+      className="fixed inset-0 w-full h-full bg-monkey-bg text-monkey-text p-4 md:p-6 font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden"
+      onTouchStart={handleGlobalTouchStart}
+      onTouchEnd={handleGlobalTouchEnd}
+    >
       {/* Top Bar */}
-      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4 flex-shrink-0">
-        <div className="flex items-center gap-3 cursor-pointer group" onClick={resetGame}>
-            <Flame className="text-monkey-main group-hover:scale-110 transition-transform duration-300" size={24} />
-            <span className="font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-colors">词炼</span>
+      <nav className="w-full max-w-6xl mx-auto flex justify-between items-center mb-4 md:mb-6 border-b border-monkey-sub/20 pb-4 flex-shrink-0 z-20 bg-monkey-bg/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3 cursor-pointer group" onClick={handleLogoClick}>
+            <Flame className={`text-monkey-main transition-transform duration-300 ${rebootAnim ? 'animate-spin' : 'group-hover:scale-110'}`} size={24} />
+            <span className={`font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-all ${rebootAnim ? 'opacity-50' : 'opacity-100'}`}>词炼</span>
         </div>
         <div className="flex gap-4 text-xs text-monkey-sub font-bold">
             <span className="bg-monkey-sub/10 px-2 py-1 rounded border border-monkey-sub/20">
@@ -197,17 +274,18 @@ const App = () => {
         {renderContent()}
       </main>
 
-      <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-2 pt-2 md:pt-0 flex-shrink-0">
+      <footer className="mt-auto md:mt-4 text-center text-xs text-monkey-sub/30 pb-2 pt-2 md:pt-0 flex-shrink-0 z-10">
         &copy; 2026 Word Forge. Performance Edition.
       </footer>
     </div>
   );
 };
 
-const MenuCard = ({ title, desc, icon, onClick }: { title: string, desc: string, icon: React.ReactNode, onClick: () => void }) => (
+const MenuCard = ({ title, desc, icon, onClick, delay }: { title: string, desc: string, icon: React.ReactNode, onClick: () => void, delay: number }) => (
   <button 
     onClick={onClick}
-    className="flex flex-row md:flex-col items-center md:text-center p-4 md:p-6 rounded-xl bg-[#2c2e31] border border-monkey-sub/20 hover:border-monkey-main hover:-translate-y-1 transition-all duration-300 group shadow-lg hover:shadow-monkey-main/10 text-left md:justify-center gap-4 md:gap-0"
+    style={{ animationDelay: `${delay}ms` }}
+    className="flex flex-row md:flex-col items-center md:text-center p-4 md:p-6 rounded-xl bg-[#2c2e31]/80 backdrop-blur-md border border-monkey-sub/20 hover:border-monkey-main hover:-translate-y-1 transition-all duration-300 group shadow-lg hover:shadow-monkey-main/10 text-left md:justify-center gap-4 md:gap-0 animate-pop-in opacity-0 fill-mode-forwards"
   >
     <div className="md:mb-4 text-monkey-sub group-hover:text-monkey-main transition-colors duration-300 transform group-hover:scale-110 shrink-0">{icon}</div>
     <div>

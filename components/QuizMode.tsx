@@ -1,20 +1,21 @@
 
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { VocabularyItem } from '../types';
 import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
+  initialState?: { currentIndex: number; score: number; answeredState: Record<number, number | null> };
   onExit: () => void;
   onShuffle: () => void;
   onRestore: () => void;
+  onSaveProgress: (state: { currentIndex: number; score: number; answeredState: Record<number, number | null> }) => void;
 }
 
-export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [answeredState, setAnsweredState] = useState<{ [key: number]: number | null }>({}); 
+export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffle, onRestore, onSaveProgress }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialState?.currentIndex || 0);
+  const [score, setScore] = useState(initialState?.score || 0);
+  const [answeredState, setAnsweredState] = useState<{ [key: number]: number | null }>(initialState?.answeredState || {}); 
   const [isAnimating, setIsAnimating] = useState(false);
   
   const touchStartX = useRef<number | null>(null);
@@ -24,6 +25,11 @@ export const QuizMode: React.FC<Props> = ({ data, onExit, onShuffle, onRestore }
   
   const currentItem = quizItems[currentIndex];
   const selectedOption = answeredState[currentIndex] ?? null;
+
+  // Save progress on change
+  useEffect(() => {
+    onSaveProgress({ currentIndex, score, answeredState });
+  }, [currentIndex, score, answeredState, onSaveProgress]);
 
   const options = useMemo(() => {
     if (!currentItem) return [];
