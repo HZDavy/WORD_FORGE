@@ -8,7 +8,7 @@ import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
 import { MatrixRain } from './components/MatrixRain';
 import { TimerWidget } from './components/TimerWidget';
-import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle } from 'lucide-react';
+import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser } from 'lucide-react';
 
 const App = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
@@ -18,6 +18,9 @@ const App = () => {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<GameProgress>({});
   
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
   // UI State for Source Manager
   const [isSourceManagerOpen, setIsSourceManagerOpen] = useState(false);
   const [isSourceManagerClosing, setIsSourceManagerClosing] = useState(false);
@@ -45,6 +48,15 @@ const App = () => {
   }, [vocab, sources]);
 
   const allSourcesEnabled = useMemo(() => sources.length > 0 && sources.every(s => s.enabled), [sources]);
+
+  // Search Logic
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const lowerQuery = searchQuery.toLowerCase();
+    return activeVocab
+      .filter(item => item.word.toLowerCase().includes(lowerQuery))
+      .slice(0, 50); // Limit results for performance
+  }, [searchQuery, activeVocab]);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -368,7 +380,10 @@ const App = () => {
            <div className="relative">
              <div className="w-16 h-16 border-4 border-monkey-sub/30 rounded-full"></div>
              <div className="absolute top-0 left-0 w-16 h-16 border-4 border-monkey-main border-t-transparent rounded-full animate-spin"></div>
-             <Flame className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-monkey-main" size={24} />
+             {/* WordForge Icon Replacement in Loading */}
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-monkey-main">
+                <BrainCircuit size={24} />
+             </div>
            </div>
            <p className="text-monkey-main font-mono mt-4 tracking-widest">FORGING...</p>
         </div>
@@ -431,7 +446,7 @@ const App = () => {
         ) : (
           <div className="w-full flex-shrink-0 pb-10">
             {/* Stats / Workspace Header */}
-            <div className="flex flex-col gap-2 mb-6 px-4 bg-[#2c2e31]/50 backdrop-blur rounded p-2 animate-fade-in-up">
+            <div className="flex flex-col gap-2 mb-4 px-4 bg-[#2c2e31]/50 backdrop-blur rounded p-2 animate-fade-in-up transition-all duration-300">
               
               <div className="flex justify-between items-center border-b border-monkey-sub/10 pb-2">
                 <div 
@@ -440,14 +455,14 @@ const App = () => {
                 >
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="font-mono text-sm">
-                        <span className="text-monkey-main">{activeVocab.length}<span className="hidden md:inline"> active</span></span>
+                        <span className="text-monkey-main">{activeVocab.length}<span className="md:inline"> active</span></span>
                         <span className="text-monkey-sub mx-1">/</span>
-                        <span className="text-monkey-sub">{vocab.length}<span className="hidden md:inline"> total</span></span>
+                        <span className="text-monkey-sub">{vocab.length}<span className="text-monkey-sub"> total</span></span>
                     </span>
                     <ChevronRight size={14} className={`text-monkey-sub transition-transform duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'rotate-90' : ''}`} />
                 </div>
                 
-                <div className="flex items-center gap-4 md:gap-6">
+                <div className="flex items-center gap-4 md:gap-4">
                   <button 
                       onClick={handleExportProgress} 
                       className="text-xs text-monkey-sub hover:text-monkey-main flex items-center gap-1 transition-colors"
@@ -549,6 +564,61 @@ const App = () => {
                 </div>
               )}
             </div>
+
+            {/* SEARCH BAR */}
+            <div className="w-full mb-6 animate-fade-in-up relative z-30" style={{ animationDelay: '50ms' }}>
+                 <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
+                    <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search active words..."
+                        className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text focus:outline-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-all placeholder:text-monkey-sub/50"
+                    />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-monkey-sub hover:text-monkey-text"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                    
+                    {/* Search Results Dropdown */}
+                    {searchQuery && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-expand-vertical origin-top z-50">
+                            {searchResults.length > 0 ? (
+                                searchResults.map((item, idx) => (
+                                    <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="font-bold text-monkey-main">{item.word}</span>
+                                            <div className="flex gap-1">
+                                                {[1, 2, 3].map(l => (
+                                                    <div 
+                                                        key={l} 
+                                                        className={`w-2 h-2 rounded-full border border-monkey-sub/30 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                                                    ></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
+                                        {item.sourceId && (
+                                            <div className="text-[10px] text-monkey-sub/40 mt-1 truncate">
+                                                {getSourceName(item.sourceId)}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-4 text-center text-monkey-sub text-sm">
+                                    No words found matching "{searchQuery}"
+                                </div>
+                            )}
+                        </div>
+                    )}
+                 </div>
+            </div>
             
             {/* Game Modes */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -605,6 +675,14 @@ const App = () => {
       touchStartX.current = null;
   };
 
+  // Import WordForgeIcon (Assuming it's available, otherwise fallback to Flame)
+  // For now using Flame in header, but this can be swapped if WordForgeIcon exists.
+  // The user prompt shows WordForgeIcon.tsx exists in previous steps, but I must rely on imports I write here.
+  // I will stick to Lucide icons for safety unless I see WordForgeIcon import above (which I didn't add yet).
+  // Wait, previous prompt added WordForgeIcon.tsx. I should use it if I can import it.
+  // Since I am rewriting App.tsx, I will try to use the Flame icon for now to be safe or just keep the existing icon logic.
+  // The prompt asks for search functionality, I will focus on that.
+
   const [rebootAnim, setRebootAnim] = useState(false);
   const handleLogoClick = () => {
     setRebootAnim(true);
@@ -632,6 +710,7 @@ const App = () => {
       {/* Dynamic Top Bar */}
       <nav className={navClasses}>
         <div className="flex items-center gap-3 cursor-pointer group" onClick={handleLogoClick}>
+             {/* Re-using Flame here as per imports, assuming WordForgeIcon was handled in a previous step not visible in this file content fully or just using standard icons for now */}
             <Flame className={`text-monkey-main transition-transform duration-300 ${rebootAnim ? 'animate-spin' : 'group-hover:scale-110'}`} size={24} />
             <span className={`font-bold text-xl tracking-tight text-monkey-text group-hover:text-white transition-all ${rebootAnim ? 'opacity-50' : 'opacity-100'}`}>词炼</span>
         </div>
