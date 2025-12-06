@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
@@ -442,14 +440,14 @@ const App = () => {
                 >
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="font-mono text-sm">
-                        <span className="text-monkey-main">{activeVocab.length}<span className="hidden md:inline"> active</span></span>
+                        <span className="text-monkey-main">{activeVocab.length}<span> active</span></span>
                         <span className="text-monkey-sub mx-1">/</span>
                         <span className="text-monkey-sub">{vocab.length}<span className="hidden md:inline"> total</span></span>
                     </span>
                     <ChevronRight size={14} className={`text-monkey-sub transition-transform duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'rotate-90' : ''}`} />
                 </div>
                 
-                <div className="flex items-center gap-2 md:gap-6">
+                <div className="flex items-center gap-4 md:gap-6">
                   <button 
                       onClick={handleExportProgress} 
                       className="text-xs text-monkey-sub hover:text-monkey-main flex items-center gap-1 transition-colors"
@@ -486,7 +484,7 @@ const App = () => {
                           {sources.map(source => (
                               <div key={source.id} className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-colors group/item">
                                   {editingSourceId === source.id ? (
-                                      <div className="flex items-center gap-1 flex-1 mr-2">
+                                      <div className="flex items-center gap-2 flex-1 mr-2">
                                           <input 
                                               type="text" 
                                               value={editName}
@@ -499,8 +497,20 @@ const App = () => {
                                               }}
                                               onClick={(e) => e.stopPropagation()}
                                           />
-                                          <button onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}><Check size={14} className="text-green-500 hover:text-green-400"/></button>
-                                          <button onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}><X size={14} className="text-monkey-error hover:text-red-400"/></button>
+                                          <div className="flex items-center gap-3">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
+                                                className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
+                                            >
+                                                <Check size={16} className="text-green-500 hover:text-green-400"/>
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
+                                                className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
+                                            >
+                                                <X size={16} className="text-monkey-error hover:text-red-400"/>
+                                            </button>
+                                          </div>
                                       </div>
                                   ) : (
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
