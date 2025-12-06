@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
@@ -45,94 +46,137 @@ const App = () => {
     return vocab.filter(item => !item.sourceId || enabledSourceIds.has(item.sourceId));
   }, [vocab, sources]);
 
+  const allSourcesEnabled = useMemo(() => sources.length > 0 && sources.every(s => s.enabled), [sources]);
+
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = e.target;
-    const file = target.files?.[0];
+    const files: File[] = target.files ? Array.from(target.files) : [];
     
-    // Reset input value immediately
+    // Reset input value immediately so same files can be selected again if needed
     target.value = '';
 
-    if (!file) return;
+    if (files.length === 0) return;
 
     setLoading(true);
     setError(null);
+
+    // Special Handling for Single Restore File (.forge / .json)
+    // We only support restoring state from a single file at a time.
+    if (files.length === 1) {
+        const file = files[0];
+        const lowerName = file.name.toLowerCase();
+        if (lowerName.endsWith('.forge') || lowerName.endsWith('.json')) {
+            try {
+                const text = await file.text();
+                const saveData = JSON.parse(text) as ForgeSaveData;
+                if (saveData.vocab && Array.isArray(saveData.vocab)) {
+                    // If we have existing data, prompt for Merge vs Overwrite
+                    if (vocab.length > 0) {
+                        setPendingSaveData(saveData);
+                        setShowImportModal(true);
+                        setIsClosingModal(false);
+                    } else {
+                        // Empty state: direct load
+                        loadSaveData(saveData, false);
+                    }
+                } else {
+                    throw new Error("Invalid save file format");
+                }
+            } catch (err: any) {
+                console.error(err);
+                setError("Failed to parse save file. The file might be corrupted.");
+            }
+            setLoading(false);
+            return;
+        }
+    }
+
+    // Batch Document Processing
+    const newSources: SourceFile[] = [];
+    const newVocabItems: VocabularyItem[] = [];
+    const errorMessages: string[] = [];
+
     try {
-      const fileName = file.name;
-      const lowerName = fileName.toLowerCase();
+        for (const file of files) {
+            const fileName = file.name;
+            const lowerName = fileName.toLowerCase();
+            const fileType = file.type;
+            
+            // Skip .forge/.json in batch mode to avoid confusion, or handle as error
+            if (lowerName.endsWith('.forge') || lowerName.endsWith('.json')) {
+                continue; 
+            }
 
-      // Handle .forge/.json save files (Full State Restore or Merge)
-      if (lowerName.endsWith('.forge') || lowerName.endsWith('.json')) {
-          const text = await file.text();
-          try {
-              const saveData = JSON.parse(text) as ForgeSaveData;
-              if (saveData.vocab && Array.isArray(saveData.vocab)) {
-                  // If we have existing data, prompt for Merge vs Overwrite
-                  if (vocab.length > 0) {
-                      setPendingSaveData(saveData);
-                      setShowImportModal(true);
-                      setIsClosingModal(false);
-                  } else {
-                      // Empty state: direct load
-                      loadSaveData(saveData, false);
-                  }
-              } else {
-                  throw new Error("Invalid save file format");
-              }
-          } catch (err) {
-              throw new Error("Failed to parse save file. The file might be corrupted.");
-          }
-          setLoading(false);
-          return;
-      }
+            try {
+                let extracted: VocabularyItem[] = [];
 
-      // Handle Document Upload (Append to Workspace)
-      let extracted: VocabularyItem[] = [];
-      const fileType = file.type;
+                if (fileType === 'application/pdf' || lowerName.endsWith('.pdf')) {
+                    extracted = await parsePdf(file);
+                } else if (fileType === 'text/plain' || lowerName.endsWith('.txt')) {
+                    extracted = await parseTxt(file);
+                } else if (
+                    fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+                    lowerName.endsWith('.docx')
+                ) {
+                    extracted = await parseDocx(file);
+                } else {
+                    errorMessages.push(`${fileName}: Unsupported type`);
+                    continue;
+                }
 
-      if (fileType === 'application/pdf' || lowerName.endsWith('.pdf')) {
-        extracted = await parsePdf(file);
-      } else if (fileType === 'text/plain' || lowerName.endsWith('.txt')) {
-        extracted = await parseTxt(file);
-      } else if (
-        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-        lowerName.endsWith('.docx')
-      ) {
-        extracted = await parseDocx(file);
-      } else {
-        throw new Error("Unsupported file type. Please upload PDF, DOCX, TXT, or .FORGE.");
-      }
+                if (extracted.length < 5) {
+                    errorMessages.push(`${fileName}: Too few words found`);
+                    continue;
+                }
 
-      if (extracted.length < 5) {
-        setError("Extract failed: Found fewer than 5 words. Please check file format.");
-      } else {
-        // Create new Source
-        const newSourceId = generateId();
-        const newSource: SourceFile = {
-            id: newSourceId,
-            name: fileName,
-            enabled: true,
-            dateAdded: Date.now(),
-            wordCount: extracted.length
-        };
+                // Create new Source
+                const newSourceId = generateId();
+                const newSource: SourceFile = {
+                    id: newSourceId,
+                    name: fileName,
+                    enabled: true,
+                    dateAdded: Date.now(),
+                    wordCount: extracted.length
+                };
 
-        // Tag new words with sourceId
-        const taggedWords = extracted.map(item => ({
-            ...item,
-            sourceId: newSourceId
-        }));
+                // Tag new words with sourceId
+                const taggedWords = extracted.map(item => ({
+                    ...item,
+                    sourceId: newSourceId
+                }));
 
-        setSources(prev => [...prev, newSource]);
-        setVocab(prev => [...prev, ...taggedWords]);
-        
-        // Don't reset progress, just append data. 
-      }
+                newSources.push(newSource);
+                newVocabItems.push(...taggedWords);
+
+            } catch (err: any) {
+                console.error(`Error parsing ${fileName}:`, err);
+                errorMessages.push(`${fileName}: ${err.message || 'Parse error'}`);
+            }
+        }
+
+        // Batch Update State
+        if (newSources.length > 0) {
+            setSources(prev => [...prev, ...newSources]);
+            setVocab(prev => [...prev, ...newVocabItems]);
+        }
+
+        // Handle Errors
+        if (errorMessages.length > 0) {
+            // If we successfully imported some files but failed others
+            if (newSources.length > 0) {
+                setError(`Imported ${newSources.length} files. Failed: ${errorMessages.slice(0, 2).join(', ')}${errorMessages.length > 2 ? '...' : ''}`);
+            } else {
+                setError(`All imports failed: ${errorMessages.slice(0, 2).join(', ')}`);
+            }
+        }
+
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to parse file.");
+        console.error(err);
+        setError("Unexpected error during batch upload.");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -230,6 +274,11 @@ const App = () => {
 
   const toggleSource = (id: string) => {
       setSources(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
+  };
+
+  const toggleAllSources = () => {
+      const allEnabled = sources.every(s => s.enabled);
+      setSources(prev => prev.map(s => ({ ...s, enabled: !allEnabled })));
   };
 
   // Request Delete Logic
@@ -371,9 +420,9 @@ const App = () => {
           <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
             <label className="flex flex-col items-center cursor-pointer">
               <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
-              <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload File / Load Progress</span>
-              <span className="text-xs md:text-sm text-monkey-sub text-center px-4">Supported: PDF, DOCX, TXT, .FORGE</span>
-              <input type="file" className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
+              <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload Files / Load Progress</span>
+              <span className="text-xs md:text-sm text-monkey-sub text-center px-4">Supported: PDF, DOCX, TXT, .FORGE (Batch supported)</span>
+              <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
             </label>
             {error && (
               <div className="mt-6 flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-3 rounded text-sm animate-shake">
@@ -413,7 +462,7 @@ const App = () => {
                   <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors">
                       <FileUp size={14} />
                       <span className="hidden sm:inline">Add/Replace</span>
-                      <input type="file" className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
+                      <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
                   </label>
                 </div>
               </div>
@@ -421,10 +470,17 @@ const App = () => {
               {/* Source Manager Panel */}
               {(isSourceManagerOpen || isSourceManagerClosing) && (
                   <div className={`bg-[#252628] rounded border border-monkey-sub/20 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-vertical' : 'animate-expand-vertical'}`}>
-                      <div className="flex justify-between items-center mb-2 px-2">
+                      <div className="flex items-center gap-2 mb-1 px-2 pt-2 pb-1 border-b border-monkey-sub/10">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
+                            className="text-monkey-sub hover:text-monkey-main transition-colors"
+                            title={allSourcesEnabled ? "Deselect All" : "Select All"}
+                          >
+                              {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                          </button>
                           <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
                       </div>
-                      <div className="flex flex-col gap-1 max-h-40 overflow-y-auto custom-scrollbar">
+                      <div className="flex flex-col gap-1 max-h-40 overflow-y-auto custom-scrollbar p-1">
                           {sources.map(source => (
                               <div key={source.id} className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-colors group/item">
                                   {editingSourceId === source.id ? (
