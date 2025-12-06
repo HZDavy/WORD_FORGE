@@ -288,7 +288,7 @@ const App = () => {
           setTimeout(() => {
               setIsSourceManagerOpen(false);
               setIsSourceManagerClosing(false);
-          }, 250); // Match animation duration
+          }, 250); // Match animation duration (collapse-grid is 0.25s)
       } else {
           setIsSourceManagerOpen(true);
       }
@@ -576,82 +576,88 @@ const App = () => {
             >
                 {/* Source Manager Panel */}
                 {(isSourceManagerOpen || isSourceManagerClosing) && (
-                      <div className={`mx-0 bg-[#252628] rounded-b-xl border-x border-b border-monkey-sub/20 origin-top overflow-hidden mb-4 ${isSourceManagerClosing ? 'animate-collapse-vertical' : 'animate-expand-vertical'}`}>
-                          <div className="flex items-center gap-2 mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#252628]">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
-                                className="text-monkey-sub hover:text-monkey-main transition-colors"
-                                title={allSourcesEnabled ? "Deselect All" : "Select All"}
-                              >
-                                  {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                              </button>
-                              <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
-                          </div>
-                          <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
-                              {sources.map(source => (
-                                  <div key={source.id} className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-colors group/item">
-                                      {editingSourceId === source.id ? (
-                                          <div className="flex items-center gap-2 flex-1 mr-2">
-                                              <input 
-                                                  type="text" 
-                                                  value={editName}
-                                                  onChange={(e) => setEditName(e.target.value)}
-                                                  className="bg-[#323437] text-monkey-text px-2 py-1 rounded text-xs w-full border border-monkey-main outline-none"
-                                                  autoFocus
-                                                  onKeyDown={(e) => {
-                                                      if (e.key === 'Enter') renameSource(source.id, editName);
-                                                      if (e.key === 'Escape') setEditingSourceId(null);
-                                                  }}
-                                                  onClick={(e) => e.stopPropagation()}
-                                              />
-                                              <div className="flex items-center gap-3">
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
-                                                    className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
-                                                >
-                                                    <Check size={16} className="text-green-500 hover:text-green-400"/>
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
-                                                    className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
-                                                >
-                                                    <X size={16} className="text-monkey-error hover:text-red-400"/>
-                                                </button>
+                      // ANIMATION WRAPPER: Handles Height & Margins Only. NO BORDERS/BG here.
+                      <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
+                          <div className="min-h-0">
+                            {/* VISUAL WRAPPER: Handles Borders, Background, Rounded Corners */}
+                            <div className="bg-[#252628] rounded-b-xl border-x border-b border-monkey-sub/20">
+                                <div className="flex items-center gap-2 mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#252628]">
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
+                                      className="text-monkey-sub hover:text-monkey-main transition-colors"
+                                      title={allSourcesEnabled ? "Deselect All" : "Select All"}
+                                    >
+                                        {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                    </button>
+                                    <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
+                                </div>
+                                <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
+                                    {sources.map(source => (
+                                        <div key={source.id} className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-colors group/item">
+                                            {editingSourceId === source.id ? (
+                                                <div className="flex items-center gap-2 flex-1 mr-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={editName}
+                                                        onChange={(e) => setEditName(e.target.value)}
+                                                        className="bg-[#323437] text-monkey-text px-2 py-1 rounded text-xs w-full border border-monkey-main outline-none"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') renameSource(source.id, editName);
+                                                            if (e.key === 'Escape') setEditingSourceId(null);
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                    <div className="flex items-center gap-3">
+                                                      <button 
+                                                          onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
+                                                          className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
+                                                      >
+                                                          <Check size={16} className="text-green-500 hover:text-green-400"/>
+                                                      </button>
+                                                      <button 
+                                                          onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
+                                                          className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
+                                                      >
+                                                          <X size={16} className="text-monkey-error hover:text-red-400"/>
+                                                      </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                  <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
+                                                      {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                                  </button>
+                                                  <FileText size={14} className="text-monkey-sub shrink-0" />
+                                                  <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
+                                                  <button 
+                                                      onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
+                                                      className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1"
+                                                      title="Rename"
+                                                  >
+                                                      <Pencil size={12} />
+                                                  </button>
+                                                  <span className="text-xs text-monkey-sub bg-monkey-sub/10 px-1 rounded ml-auto">{source.wordCount}</span>
                                               </div>
-                                          </div>
-                                      ) : (
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
-                                                {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                                            </button>
-                                            <FileText size={14} className="text-monkey-sub shrink-0" />
-                                            <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
+                                            )}
+                                            
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
-                                                className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1"
-                                                title="Rename"
+                                              onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
+                                              className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
+                                              title="Remove File"
                                             >
-                                                <Pencil size={12} />
+                                                <Trash2 size={14} />
                                             </button>
-                                            <span className="text-xs text-monkey-sub bg-monkey-sub/10 px-1 rounded ml-auto">{source.wordCount}</span>
                                         </div>
-                                      )}
-                                      
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
-                                        className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
-                                        title="Remove File"
-                                      >
-                                          <Trash2 size={14} />
-                                      </button>
-                                  </div>
-                              ))}
+                                    ))}
+                                </div>
+                            </div>
                           </div>
                       </div>
                   )}
 
-                {/* SEARCH BAR */}
-                <div className={`w-full mb-6 animate-fade-in-up relative z-30 ${(isSourceManagerOpen || isSourceManagerClosing) ? 'mt-0' : 'mt-4'}`} style={{ animationDelay: '50ms' }}>
+                {/* SEARCH BAR - REMOVED CONDITIONAL MARGIN TO PREVENT JUMP */}
+                <div className="w-full mb-6 animate-fade-in-up relative z-30" style={{ animationDelay: '50ms' }}>
                      <div className="relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
                         <input 

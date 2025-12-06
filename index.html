@@ -82,6 +82,8 @@
                 'game-pop-in': 'gamePopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
                 'expand-vertical': 'expandVertical 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 'collapse-vertical': 'collapseVertical 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                'expand-grid': 'expandGrid 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                'collapse-grid': 'collapseGrid 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
               },
               keyframes: {
                 shake: {
@@ -151,6 +153,14 @@
                 collapseVertical: {
                   '0%': { opacity: '1', maxHeight: '80vh' },
                   '100%': { opacity: '0', maxHeight: '0' }
+                },
+                expandGrid: {
+                  '0%': { gridTemplateRows: '0fr', opacity: '0', marginBottom: '0' },
+                  '100%': { gridTemplateRows: '1fr', opacity: '1', marginBottom: '1rem' }
+                },
+                collapseGrid: {
+                  '0%': { gridTemplateRows: '1fr', opacity: '1', marginBottom: '1rem' },
+                  '100%': { gridTemplateRows: '0fr', opacity: '0', marginBottom: '0' }
                 }
               }
             }
