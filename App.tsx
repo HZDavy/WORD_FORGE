@@ -40,6 +40,10 @@ const App = () => {
   // Gesture State for Global Edge Swipe
   const touchStartX = useRef<number | null>(null);
 
+  // Gesture State for Search Result Swiping
+  const searchLightSwipeStartX = useRef<number | null>(null);
+  const searchLastLightUpdateX = useRef<number | null>(null);
+
   // Computed Active Vocabulary based on enabled sources
   const activeVocab = useMemo(() => {
     if (sources.length === 0) return vocab; // Fallback for legacy state
@@ -49,12 +53,15 @@ const App = () => {
 
   const allSourcesEnabled = useMemo(() => sources.length > 0 && sources.every(s => s.enabled), [sources]);
 
-  // Search Logic
+  // Search Logic (Updated for Bilingual Search)
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const lowerQuery = searchQuery.toLowerCase();
     return activeVocab
-      .filter(item => item.word.toLowerCase().includes(lowerQuery))
+      .filter(item => 
+          item.word.toLowerCase().includes(lowerQuery) || 
+          item.definition.toLowerCase().includes(lowerQuery)
+      )
       .slice(0, 50); // Limit results for performance
   }, [searchQuery, activeVocab]);
 
@@ -373,6 +380,42 @@ const App = () => {
     setVocab(prev => [...prev].sort((a, b) => a.originalIndex - b.originalIndex));
   }, []);
 
+  // --- Search Result Swipe Handlers ---
+  const handleSearchLightSwipeStart = (e: React.TouchEvent, item: VocabularyItem) => {
+      e.stopPropagation();
+      searchLightSwipeStartX.current = e.touches[0].clientX;
+      searchLastLightUpdateX.current = e.touches[0].clientX;
+  };
+
+  const handleSearchLightSwipeMove = (e: React.TouchEvent, item: VocabularyItem) => {
+      e.stopPropagation();
+      if (searchLastLightUpdateX.current === null) return;
+      const currentX = e.touches[0].clientX;
+      const diff = currentX - searchLastLightUpdateX.current;
+      const THRESHOLD = 10; 
+
+      if (Math.abs(diff) > THRESHOLD) {
+          if (diff > 0) {
+              // Right Swipe -> Increase
+              if (item.level < 3) {
+                  handleLevelUpdate(item.id, item.level + 1);
+                  searchLastLightUpdateX.current = currentX;
+              }
+          } else {
+              // Left Swipe -> Decrease
+              if (item.level > 0) {
+                  handleLevelUpdate(item.id, item.level - 1);
+                  searchLastLightUpdateX.current = currentX;
+              }
+          }
+      }
+  };
+
+  const handleSearchLightSwipeEnd = () => {
+      searchLightSwipeStartX.current = null;
+      searchLastLightUpdateX.current = null;
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -573,7 +616,7 @@ const App = () => {
                         type="text" 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search active words..."
+                        placeholder="Search English words or Chinese definitions..."
                         className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text focus:outline-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-all placeholder:text-monkey-sub/50"
                     />
                     {searchQuery && (
@@ -592,12 +635,26 @@ const App = () => {
                                 searchResults.map((item, idx) => (
                                     <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
                                         <div className="flex justify-between items-start mb-1">
-                                            <span className="font-bold text-monkey-main">{item.word}</span>
-                                            <div className="flex gap-1">
+                                            <span className="font-bold text-monkey-main select-all">{item.word}</span>
+                                            
+                                            {/* Interactive Traffic Lights in Search */}
+                                            <div 
+                                                className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none"
+                                                onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
+                                                onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
+                                                onTouchEnd={handleSearchLightSwipeEnd}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
                                                 {[1, 2, 3].map(l => (
                                                     <div 
                                                         key={l} 
-                                                        className={`w-2 h-2 rounded-full border border-monkey-sub/30 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // Click to set level directly. If clicking current level, reduce by 1 (toggle off)
+                                                            const nextLevel = item.level === l ? l - 1 : l;
+                                                            handleLevelUpdate(item.id, nextLevel);
+                                                        }}
+                                                        className={`w-3 h-3 rounded-full border border-monkey-sub/30 cursor-pointer transition-transform active:scale-90 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
                                                     ></div>
                                                 ))}
                                             </div>
@@ -612,7 +669,7 @@ const App = () => {
                                 ))
                             ) : (
                                 <div className="p-4 text-center text-monkey-sub text-sm">
-                                    No words found matching "{searchQuery}"
+                                    No words or definitions found matching "{searchQuery}"
                                 </div>
                             )}
                         </div>
@@ -674,14 +731,6 @@ const App = () => {
       }
       touchStartX.current = null;
   };
-
-  // Import WordForgeIcon (Assuming it's available, otherwise fallback to Flame)
-  // For now using Flame in header, but this can be swapped if WordForgeIcon exists.
-  // The user prompt shows WordForgeIcon.tsx exists in previous steps, but I must rely on imports I write here.
-  // I will stick to Lucide icons for safety unless I see WordForgeIcon import above (which I didn't add yet).
-  // Wait, previous prompt added WordForgeIcon.tsx. I should use it if I can import it.
-  // Since I am rewriting App.tsx, I will try to use the Flame icon for now to be safe or just keep the existing icon logic.
-  // The prompt asks for search functionality, I will focus on that.
 
   const [rebootAnim, setRebootAnim] = useState(false);
   const handleLogoClick = () => {
