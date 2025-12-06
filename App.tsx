@@ -441,8 +441,10 @@ const App = () => {
                     onClick={toggleSourceManager}
                 >
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-monkey-main font-mono text-sm">
-                        {activeVocab.length} active words <span className="text-monkey-sub text-xs">/ {vocab.length} total</span>
+                    <span className="font-mono text-sm">
+                        <span className="text-monkey-main">{activeVocab.length}<span className="hidden md:inline"> active</span></span>
+                        <span className="text-monkey-sub mx-1">/</span>
+                        <span className="text-monkey-sub">{vocab.length}<span className="hidden md:inline"> total</span></span>
                     </span>
                     <ChevronRight size={14} className={`text-monkey-sub transition-transform duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'rotate-90' : ''}`} />
                 </div>
