@@ -412,7 +412,7 @@ const App = () => {
 
     // MENU
     return (
-      <div className="flex flex-col items-center justify-center min-h-full w-full max-w-4xl mx-auto px-4 md:px-0 overflow-y-auto custom-scrollbar z-10 relative">
+      <div className="flex flex-col items-center justify-center min-h-full w-full max-w-4xl mx-auto px-4 md:px-0 overflow-y-auto overflow-x-hidden custom-scrollbar z-10 relative">
         
         {vocab.length === 0 ? (
           <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
@@ -440,7 +440,7 @@ const App = () => {
                 >
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="font-mono text-sm">
-                        <span className="text-monkey-main">{activeVocab.length}<span> active</span></span>
+                        <span className="text-monkey-main">{activeVocab.length}<span className="hidden md:inline"> active</span></span>
                         <span className="text-monkey-sub mx-1">/</span>
                         <span className="text-monkey-sub">{vocab.length}<span className="hidden md:inline"> total</span></span>
                     </span>
