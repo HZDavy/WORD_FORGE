@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { VocabularyItem } from '../types';
 import { Shuffle, RotateCcw } from 'lucide-react';
@@ -166,32 +167,67 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
 
       <div className="flex flex-wrap gap-2 md:gap-4 justify-center content-start flex-grow pb-10 px-2 md:px-4 overflow-y-auto">
         {bubbles.map((b, idx) => {
-           if (b.matched && b.status !== 'success') return null; 
+           const isWord = b.type === 'word';
            
-           let baseClass = "px-3 py-3 md:px-5 md:py-4 rounded-lg border-2 cursor-pointer font-bold transition-all duration-300 select-none animate-pop-in max-w-full md:max-w-[400px] break-words ";
+           // --- WRAPPER (Layout) ---
+           // Fixed slot that strictly maintains the grid layout.
+           // Handles entrance animations and Z-indexing for the 'Pop-out' effect.
+           let wrapperClass = "relative flex items-center justify-center animate-pop-in max-w-full ";
            
+           if (b.status === 'selected' || b.status === 'wrong' || b.status === 'success') {
+               wrapperClass += "z-50 ";
+           } else {
+               wrapperClass += "z-0 ";
+           }
+           
+           // Animate the wrapper for shake so layout doesn't break but the whole unit shakes
+           if (b.status === 'wrong') {
+               wrapperClass += "animate-shake ";
+           }
+           
+           // --- INNER CARD (Visuals) ---
+           // Handles the look and feel, plus transforms (scale/rotate).
+           // Since it's inside the wrapper, transforms won't affect the wrapper's flow dimensions.
+           let innerClass = "flex items-center justify-center text-center rounded-lg border-2 cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] select-none w-full h-full ";
+           
+           // Typography & Padding (Fixed to ensure consistent size in Wrapper)
+           innerClass += "px-4 py-3 md:px-5 md:py-4 ";
+           if (isWord) {
+               innerClass += "text-base md:text-xl font-bold ";
+           } else {
+               innerClass += "text-sm md:text-base font-normal leading-relaxed ";
+           }
+
+           // State Styling
            if (b.status === 'default') {
-               if (b.type === 'word') {
-                   baseClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] text-base md:text-xl";
+               innerClass += "scale-100 ";
+               if (isWord) {
+                   innerClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] ";
                } else {
-                   baseClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] text-sm md:text-base font-normal leading-relaxed";
+                   innerClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] ";
                }
            } else if (b.status === 'selected') {
-               baseClass += "border-monkey-main bg-monkey-main text-monkey-bg scale-105 z-10 text-sm md:text-base";
+               // The POP: Significant scale, floating above others via Wrapper's z-index. Reduced scale to 1.1.
+               // REMOVED SHADOW/GLOW for flat design.
+               innerClass += "scale-110 border-monkey-main bg-monkey-main text-monkey-bg ";
            } else if (b.status === 'wrong') {
-               baseClass += "border-monkey-error bg-monkey-error text-white animate-shake text-sm md:text-base";
+               innerClass += "scale-110 border-monkey-error bg-monkey-error text-white ";
            } else if (b.status === 'success') {
-               baseClass += "animate-merge-success pointer-events-none z-20 text-sm md:text-base"; 
+               innerClass += "animate-merge-success pointer-events-none "; 
            }
 
            return (
              <div
                key={b.uid}
                onClick={() => handleSelect(b.uid)}
-               className={baseClass}
-               style={{ animationDelay: b.status === 'default' ? `${idx * 40}ms` : '0ms' }}
+               className={wrapperClass}
+               style={{ 
+                   animationDelay: b.status === 'default' ? `${idx * 40}ms` : '0ms'
+               }}
              >
-               {b.text}
+                <div className={innerClass}>
+                    {b.text}
+                </div>
              </div>
            )
         })}
