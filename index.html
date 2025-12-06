@@ -3,13 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- PWA / iOS Web Clip Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="词炼">
+    
     <title>词炼 - 极致背词</title>
+    
+    <!-- Standard Favicon (Browsers) -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    
+    <!-- Apple Touch Icon (Will be updated to PNG by script below) -->
     <link rel="apple-touch-icon" href="favicon.svg" />
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script>
+        // iOS Icon Fix: Convert SVG to PNG dynamically
+        (function() {
+          window.addEventListener('load', function() {
+            var link = document.querySelector("link[rel='apple-touch-icon']");
+            if (link) {
+              var img = new Image();
+              img.crossOrigin = "Anonymous";
+              img.onload = function() {
+                var canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 512, 512);
+                try {
+                   // Convert canvas to PNG data URL
+                   var pngUrl = canvas.toDataURL('image/png');
+                   link.href = pngUrl;
+                } catch(e) {
+                   console.warn("Could not convert SVG to PNG for iOS icon", e);
+                }
+              };
+              img.src = 'favicon.svg';
+            }
+          });
+        })();
+
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         tailwind.config = {
           theme: {
