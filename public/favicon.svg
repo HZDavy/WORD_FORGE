@@ -1,42 +1,57 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
+    <!-- 1. iOS-Style Background Gradient -->
+    <linearGradient id="bgGradient" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#f5d359"/> <!-- Lighter Yellow Top -->
+      <stop offset="100%" stop-color="#c29408"/> <!-- Darker Gold Bottom -->
+    </linearGradient>
+
     <!-- The Flame Path -->
     <path id="flame" d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.6-3.3a1 1 0 0 1 1.9.2z" />
 
-    <!-- Glass Body: Milky White (Solid top, transparent bottom) -->
+    <!-- 2. Soft Shadow Filter -->
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="0.8"/> <!-- Soft blur -->
+      <feOffset dx="0" dy="1.5" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.4"/> <!-- Reduce shadow opacity -->
+      </feComponentTransfer>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.4   0 0 0 0 0.3   0 0 0 0 0  0 0 0 1 0" /> <!-- Dark Gold Shadow Tone -->
+    </filter>
+
+    <!-- Glass Body Gradient -->
     <linearGradient id="glassBody" x1="50%" y1="0%" x2="50%" y2="100%">
       <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
-      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.9"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0.3"/>
     </linearGradient>
 
-    <!-- Gloss Highlight: Sharp reflection at top -->
+    <!-- Specular Highlight -->
     <linearGradient id="gloss" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <!-- 1. Background: Yellow Rounded Rectangle -->
-  <rect width="512" height="512" rx="110" fill="#e2b714"/>
+  <!-- Background Rect -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGradient)"/>
 
-  <!-- Icon Container -->
+  <!-- Icon Group -->
   <g transform="translate(64, 64) scale(16)">
     
-    <!-- 2. Drop Shadow: Dark Gold (Not black, to avoid grey look) -->
-    <use href="#flame" fill="#967808" transform="translate(0, 1.2)" opacity="0.6" />
+    <!-- Soft Shadow (Blurred) -->
+    <use href="#flame" filter="url(#softShadow)" />
 
-    <!-- 3. Glass Body -->
+    <!-- Main Glass Body -->
     <use href="#flame" fill="url(#glassBody)" />
 
-    <!-- 4. Inner Depth / Bottom Reflection (Simulated by stroke) -->
-    <use href="#flame" fill="none" stroke="#d4a010" stroke-width="0.3" transform="translate(0, 0.2)" opacity="0.5" />
+    <!-- Inner Depth Stroke -->
+    <use href="#flame" fill="none" stroke="#b48a05" stroke-width="0.2" opacity="0.3" transform="translate(0, 0.2)" />
 
-    <!-- 5. Specular Highlight (Shrunken slightly to look like surface reflection) -->
-    <use href="#flame" fill="url(#gloss)" transform="scale(0.92) translate(0.65, 0.5)" opacity="0.8"/>
+    <!-- Specular Highlight (Reflection) -->
+    <use href="#flame" fill="url(#gloss)" transform="scale(0.92) translate(0.65, 0.5)" />
     
-    <!-- 6. Rim Light: Crisp White Edge -->
-    <use href="#flame" fill="none" stroke="#ffffff" stroke-width="0.3" opacity="1.0" />
+    <!-- Rim Light (Crisp Edge) -->
+    <use href="#flame" fill="none" stroke="#ffffff" stroke-width="0.4" opacity="0.9" />
 
   </g>
 </svg>
