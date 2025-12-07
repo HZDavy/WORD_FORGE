@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { VocabularyItem } from '../types';
-import { Shuffle, RotateCcw } from 'lucide-react';
+import { Shuffle, RotateCcw, X, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -10,6 +11,7 @@ interface Props {
   onShuffle: () => void;
   onRestore: () => void;
   onSaveProgress: (round: number) => void;
+  onUpdateLevel: (id: string, level: number) => void;
 }
 
 interface Bubble {
@@ -23,7 +25,7 @@ interface Bubble {
 
 const ITEMS_PER_ROUND = 6; 
 
-export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, onShuffle, onRestore, onSaveProgress }) => {
+export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, onShuffle, onRestore, onSaveProgress, onUpdateLevel }) => {
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
   
@@ -35,8 +37,25 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isWait, setIsWait] = useState(false);
+  
+  // Track completed rounds in this session to show stamps
+  const [completedRounds, setCompletedRounds] = useState<Set<number>>(new Set());
+  
+  // Inspection State - Store ID instead of Object to allow reactive updates
+  const [inspectedId, setInspectedId] = useState<string | null>(null);
+  const longPressTimer = useRef<number | null>(null);
+  
+  // Gesture State for Traffic Lights in Inspector
+  const lightStartX = useRef<number | null>(null);
+  const lastLightUpdateX = useRef<number | null>(null);
 
   const totalRounds = Math.ceil(filteredData.length / ITEMS_PER_ROUND);
+
+  // Derive inspectedItem from LIVE data to ensure level updates are reflected immediately
+  const inspectedItem = useMemo(() => {
+      if (!inspectedId) return null;
+      return filteredData.find(i => i.id === inspectedId) || null;
+  }, [filteredData, inspectedId]);
 
   useEffect(() => {
     onSaveProgress(round);
@@ -52,6 +71,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   const restart = () => {
       setRound(0);
       setSelectedId(null);
+      setCompletedRounds(new Set());
   };
 
   const toggleFilter = (level: number) => {
@@ -64,6 +84,21 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       restart();
   };
 
+  const handleNext = useCallback(() => {
+    if (round < totalRounds - 1) {
+        setRound(r => r + 1);
+        setSelectedId(null);
+    }
+  }, [round, totalRounds]);
+
+  const handlePrev = useCallback(() => {
+      if (round > 0) {
+          setRound(r => r - 1);
+          setSelectedId(null);
+      }
+  }, [round]);
+
+  // Only regenerate bubbles when ROUND or FILTER changes. 
   useEffect(() => {
     if (filteredData.length === 0) return;
 
@@ -100,10 +135,10 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
     const combined = [...wordBubbles, ...defBubbles].sort(() => Math.random() - 0.5);
     setBubbles(combined);
     setSelectedId(null);
-  }, [round, filteredData]);
+  }, [round, activeLevels]); 
 
   const handleSelect = useCallback((uid: string) => {
-    if (isWait) return;
+    if (isWait || inspectedId) return;
     
     const clicked = bubbles.find(b => b.uid === uid);
     if (!clicked || clicked.matched) return;
@@ -133,6 +168,9 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
 
       const remaining = bubbles.filter(b => !b.matched && b.id !== clicked.id).length;
       if (remaining === 0) {
+        // Mark current round as complete
+        setCompletedRounds(prev => new Set(prev).add(round));
+
         setTimeout(() => {
           if (round < totalRounds - 1) {
             setRound(r => r + 1);
@@ -157,15 +195,92 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
         setIsWait(false);
       }, 800);
     }
-  }, [bubbles, selectedId, isWait, round, totalRounds]);
+  }, [bubbles, selectedId, isWait, round, totalRounds, inspectedId]);
+
+  // --- Long Press & Inspection Logic ---
+  const handleTouchStart = (id: string) => {
+      longPressTimer.current = window.setTimeout(() => {
+          setInspectedId(id);
+      }, 500);
+  };
+
+  const handleTouchEnd = () => {
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+  };
+
+  // --- Inspector Traffic Light Logic ---
+  const handleLevelClick = (e: React.MouseEvent, level: number) => {
+      e.stopPropagation();
+      if (inspectedItem) onUpdateLevel(inspectedItem.id, level);
+  };
+
+  const handleLightTouchStart = (e: React.TouchEvent) => {
+      e.stopPropagation();
+      lightStartX.current = e.touches[0].clientX;
+      lastLightUpdateX.current = e.touches[0].clientX;
+  };
+
+  const handleLightTouchMove = (e: React.TouchEvent) => {
+      e.stopPropagation();
+      if (lastLightUpdateX.current === null || !inspectedItem) return;
+
+      const currentX = e.touches[0].clientX;
+      const diff = currentX - lastLightUpdateX.current;
+      const THRESHOLD = 10; 
+
+      if (Math.abs(diff) > THRESHOLD) {
+          if (diff > 0) {
+              // Right
+              if (inspectedItem.level < 3) {
+                  onUpdateLevel(inspectedItem.id, inspectedItem.level + 1);
+                  lastLightUpdateX.current = currentX;
+              }
+          } else {
+              // Left
+              if (inspectedItem.level > 0) {
+                  onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
+                  lastLightUpdateX.current = currentX;
+              }
+          }
+      }
+  };
+
+  const handleLightTouchEnd = () => {
+      lightStartX.current = null;
+      lastLightUpdateX.current = null;
+  }
+
 
   useEffect(() => {
       const handleKey = (e: KeyboardEvent) => {
-          if(e.code === 'Escape') onExit();
+          if (e.code === 'Escape') {
+              if (inspectedId) setInspectedId(null);
+              else onExit();
+          }
+          
+          if (inspectedItem) {
+              if (e.code === 'ArrowUp') {
+                 e.preventDefault();
+                 if (inspectedItem.level < 3) onUpdateLevel(inspectedItem.id, inspectedItem.level + 1);
+              } else if (e.code === 'ArrowDown') {
+                 e.preventDefault();
+                 if (inspectedItem.level > 0) onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
+              }
+          } else {
+              // Navigation controls when not inspecting
+              if (e.code === 'ArrowLeft') {
+                  handlePrev();
+              } else if (e.code === 'ArrowRight') {
+                  handleNext();
+              }
+          }
       }
       window.addEventListener('keydown', handleKey);
       return () => window.removeEventListener('keydown', handleKey);
-  }, [onExit]);
+  }, [onExit, inspectedId, inspectedItem, onUpdateLevel, handlePrev, handleNext]);
 
 
   if (filteredData.length === 0) {
@@ -196,11 +311,16 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center h-full pt-6 animate-game-pop-in">
-      <div className="flex justify-between w-full mb-6 border-b border-monkey-sub/20 pb-2 px-4 items-center">
+      <div className="flex justify-between w-full mb-2 border-b border-monkey-sub/20 pb-2 px-4 items-center">
         <div className="flex flex-col gap-1">
-            <div>
+            <div className="flex items-center">
                 <span className="text-monkey-main font-bold font-mono text-lg">Round {round + 1} / {totalRounds}</span>
                 <span className="text-monkey-sub text-sm font-mono ml-4 hidden sm:inline">Select matching pairs</span>
+                {completedRounds.has(round) && (
+                    <span className="ml-3 border border-monkey-main text-monkey-main px-1.5 py-0.5 text-[10px] md:text-xs rounded font-bold animate-game-pop-in select-none bg-monkey-main/10 transform -rotate-6">
+                        PASSED
+                    </span>
+                )}
             </div>
             {/* Filters */}
             <div className="flex gap-1 mt-1">
@@ -228,76 +348,142 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 md:gap-4 justify-center content-start flex-grow pb-10 pt-4 px-2 md:px-4 overflow-y-auto">
-        {bubbles.map((b, idx) => {
-           const isWord = b.type === 'word';
-           
-           // --- WRAPPER (Layout) ---
-           // Fixed slot that strictly maintains the grid layout.
-           // Handles entrance animations and Z-indexing for the 'Pop-out' effect.
-           let wrapperClass = "relative flex items-center justify-center animate-pop-in max-w-full ";
-           
-           if (b.status === 'selected' || b.status === 'wrong' || b.status === 'success') {
-               wrapperClass += "z-50 ";
-           } else {
-               wrapperClass += "z-0 ";
-           }
-           
-           // Animate the wrapper for shake so layout doesn't break but the whole unit shakes
-           if (b.status === 'wrong') {
-               wrapperClass += "animate-shake ";
-           }
-           
-           // --- INNER CARD (Visuals) ---
-           // Handles the look and feel, plus transforms (scale/rotate).
-           // Since it's inside the wrapper, transforms won't affect the wrapper's flow dimensions.
-           let innerClass = "flex items-center justify-center text-center rounded-lg border-2 cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] select-none w-full h-full ";
-           
-           // Typography & Padding (Fixed to ensure consistent size in Wrapper)
-           innerClass += "px-4 py-3 md:px-5 md:py-4 ";
-           if (isWord) {
-               innerClass += "text-base md:text-xl font-bold ";
-           } else {
-               innerClass += "text-sm md:text-base font-normal leading-relaxed ";
-           }
+      <div className="relative flex-grow w-full flex flex-col">
+          <div className="flex flex-wrap gap-2 md:gap-4 justify-center content-start flex-grow pb-2 pt-2 px-2 md:px-4 overflow-y-auto relative z-10">
+            {bubbles.map((b, idx) => {
+            const isWord = b.type === 'word';
+            let wrapperClass = "relative flex items-center justify-center animate-pop-in max-w-full ";
+            
+            if (b.status === 'selected' || b.status === 'wrong' || b.status === 'success') {
+                wrapperClass += "z-50 ";
+            } else {
+                wrapperClass += "z-0 ";
+            }
+            
+            if (b.status === 'wrong') {
+                wrapperClass += "animate-shake ";
+            }
+            
+            let innerClass = "flex items-center justify-center text-center rounded-lg border-2 cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] select-none w-full h-full ";
+            
+            innerClass += "px-4 py-3 md:px-5 md:py-4 ";
+            if (isWord) {
+                innerClass += "text-base md:text-xl font-bold ";
+            } else {
+                innerClass += "text-sm md:text-base font-normal leading-relaxed ";
+            }
 
-           // State Styling
-           if (b.status === 'default') {
-               innerClass += "scale-100 ";
-               if (isWord) {
-                   innerClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] ";
-               } else {
-                   innerClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] ";
-               }
-           } else if (b.status === 'selected') {
-               // The POP: Significant scale, floating above others via Wrapper's z-index. Reduced scale to 1.1.
-               // REMOVED SHADOW/GLOW for flat design.
-               innerClass += "scale-110 border-monkey-main bg-monkey-main text-monkey-bg ";
-           } else if (b.status === 'wrong') {
-               innerClass += "scale-110 border-monkey-error bg-monkey-error text-white ";
-           } else if (b.status === 'success') {
-               innerClass += "animate-merge-success pointer-events-none "; 
-           }
+            if (b.status === 'default') {
+                innerClass += "scale-100 ";
+                if (isWord) {
+                    innerClass += "border-monkey-sub/30 text-monkey-main hover:border-monkey-main hover:bg-monkey-bg/50 bg-[#252628] ";
+                } else {
+                    innerClass += "border-monkey-sub/30 text-gray-200 hover:border-white hover:text-white bg-[#3e4044] ";
+                }
+            } else if (b.status === 'selected') {
+                innerClass += "scale-110 border-monkey-main bg-monkey-main text-monkey-bg ";
+            } else if (b.status === 'wrong') {
+                innerClass += "scale-110 border-monkey-error bg-monkey-error text-white ";
+            } else if (b.status === 'success') {
+                innerClass += "animate-merge-success pointer-events-none "; 
+            }
 
-           return (
-             <div
-               key={b.uid}
-               onClick={() => handleSelect(b.uid)}
-               className={wrapperClass}
-               style={{ 
-                   animationDelay: b.status === 'default' ? `${idx * 40}ms` : '0ms'
-               }}
-             >
-                <div className={innerClass}>
-                    {b.text}
+            return (
+                <div
+                key={b.uid}
+                onClick={() => handleSelect(b.uid)}
+                onTouchStart={() => handleTouchStart(b.id)}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={() => handleTouchStart(b.id)}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={handleTouchEnd}
+                className={wrapperClass}
+                style={{ 
+                    animationDelay: b.status === 'default' ? `${idx * 40}ms` : '0ms'
+                }}
+                >
+                    <div className={innerClass}>
+                        {b.text}
+                    </div>
                 </div>
-             </div>
-           )
-        })}
+            )
+            })}
+          </div>
       </div>
+
+       {/* Navigation Controls */}
+      <div className="w-full flex justify-between mt-auto mb-4 px-4 z-20">
+          <button 
+            onClick={handlePrev} 
+            disabled={round === 0}
+            className="flex items-center gap-2 px-4 py-3 md:px-6 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
+          >
+              <ArrowLeft size={20} /> <span className="hidden md:inline">Prev</span>
+          </button>
+
+          <button 
+                onClick={handleNext}
+                disabled={round === totalRounds - 1 && !completedRounds.has(round)} // Only disable if on last round AND not completed. If completed, allow navigation (or finish)
+                className={`flex items-center gap-2 px-4 py-3 md:px-6 rounded transition-colors select-none ${round === totalRounds - 1 && completedRounds.has(round) ? 'bg-monkey-main text-monkey-bg font-bold hover:opacity-90' : 'text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30'}`}
+            >
+                {round === totalRounds - 1 && completedRounds.has(round) ? (
+                     <span onClick={onExit}>Finish</span>
+                ) : (
+                    <>
+                    <span className="hidden md:inline">Next</span> <ArrowRight size={20} />
+                    </>
+                )}
+            </button>
+      </div>
+
+      {/* INSPECTOR MODAL */}
+      {inspectedItem && createPortal(
+          <div 
+             className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+             onClick={() => setInspectedId(null)}
+          >
+              <div 
+                 className="bg-[#2c2e31] border border-monkey-sub/30 rounded-xl p-8 max-w-md w-full mx-4 relative animate-game-pop-in flex flex-col items-center"
+                 onClick={(e) => e.stopPropagation()}
+              >
+                  <button 
+                    onClick={() => setInspectedId(null)}
+                    className="absolute top-4 right-4 text-monkey-sub hover:text-monkey-text"
+                  >
+                      <X size={24} />
+                  </button>
+
+                  {/* Traffic Lights */}
+                  <div 
+                    className="flex gap-2 mb-6 p-4 cursor-ew-resize touch-none"
+                    onTouchStart={handleLightTouchStart}
+                    onTouchMove={handleLightTouchMove}
+                    onTouchEnd={handleLightTouchEnd}
+                  >
+                      {[1, 2, 3].map(l => (
+                            <div 
+                            key={l}
+                            onClick={(e) => handleLevelClick(e, l)}
+                            className={`w-6 h-6 rounded-full border-2 border-monkey-sub/50 cursor-pointer transition-transform ${inspectedItem.level >= l ? (inspectedItem.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                            ></div>
+                        ))}
+                  </div>
+
+                  <h2 className="text-4xl font-bold text-monkey-main mb-4 text-center">{inspectedItem.word}</h2>
+                  <p className="text-lg text-gray-200 text-center leading-relaxed">{inspectedItem.definition}</p>
+                  
+                  <div className="mt-8 text-xs text-monkey-sub/40 font-mono">
+                      Swipe lights or use ↑/↓ arrows to grade
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
       
       {/* Keyboard Legend */}
       <div className="mb-2 text-[10px] text-monkey-sub/30 hidden md:block">
+          <span>Long Press: Inspect</span>
+          <span>←/→: Prev/Next</span>
           <span>Esc: Exit</span>
       </div>
     </div>

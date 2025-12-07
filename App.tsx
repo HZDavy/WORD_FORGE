@@ -512,6 +512,7 @@ const App = () => {
                   onRestore={handleRestore}
                   onSaveProgress={saveQuizProgress}
                   onGetSourceName={getSourceName}
+                  onUpdateLevel={handleLevelUpdate}
                />;
     }
     if (mode === GameMode.MATCHING) {
@@ -522,6 +523,7 @@ const App = () => {
                   onShuffle={handleShuffle} 
                   onRestore={handleRestore} 
                   onSaveProgress={saveMatchingProgress}
+                  onUpdateLevel={handleLevelUpdate}
                />;
     }
     if (mode === GameMode.WORD_LIST) return <WordListMode data={activeVocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} onGetSourceName={getSourceName} />;
