@@ -168,7 +168,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
   return (
     <div 
-      className="w-full max-w-2xl mx-auto flex flex-col items-center h-full pt-4 md:pt-10 px-2 md:px-4 animate-game-pop-in"
+      className="w-full max-w-2xl mx-auto flex flex-col items-center h-full pt-12 md:pt-16 px-2 md:px-4 animate-game-pop-in"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -185,7 +185,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
                         <button 
                             key={level} 
                             onClick={() => toggleFilter(level)}
-                            className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all ${
+                            className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold transition-all ${
                                 isActive 
                                     ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50' 
                                     : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
