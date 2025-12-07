@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
 import { VocabularyItem, GameMode, GameProgress, ForgeSaveData, SourceFile } from './types';
@@ -8,7 +8,7 @@ import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
 import { MatrixRain } from './components/MatrixRain';
 import { TimerWidget } from './components/TimerWidget';
-import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser } from 'lucide-react';
+import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser, GripVertical } from 'lucide-react';
 
 const App = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
@@ -24,6 +24,8 @@ const App = () => {
   // UI State for Source Manager
   const [isSourceManagerOpen, setIsSourceManagerOpen] = useState(false);
   const [isSourceManagerClosing, setIsSourceManagerClosing] = useState(false);
+  const [isAnimCentered, setIsAnimCentered] = useState(true); // Control vertical position
+  
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -36,6 +38,9 @@ const App = () => {
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isClosingDeleteModal, setIsClosingDeleteModal] = useState(false);
+  
+  // Drag and Drop State for Sources
+  const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
   
   // Gesture State for Global Edge Swipe
   const touchStartX = useRef<number | null>(null);
@@ -53,6 +58,11 @@ const App = () => {
 
   const allSourcesEnabled = useMemo(() => sources.length > 0 && sources.every(s => s.enabled), [sources]);
 
+  // Reset centering when vocab becomes empty (e.g. clear all)
+  useEffect(() => {
+      if (vocab.length === 0) setIsAnimCentered(true);
+  }, [vocab.length]);
+
   // Search Logic (Updated for Bilingual Search)
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -64,11 +74,6 @@ const App = () => {
       )
       .slice(0, 50); // Limit results for performance
   }, [searchQuery, activeVocab]);
-
-  // Layout Logic: Center menu unless source manager is open
-  const isMenuCentered = useMemo(() => {
-    return vocab.length === 0 || (!isSourceManagerOpen && !isSourceManagerClosing);
-  }, [vocab.length, isSourceManagerOpen, isSourceManagerClosing]);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -284,13 +289,19 @@ const App = () => {
   // --- Source Management ---
   const toggleSourceManager = () => {
       if (isSourceManagerOpen) {
+          // Close Sequence: 1. Collapse Grid, 2. Move Down
           setIsSourceManagerClosing(true);
           setTimeout(() => {
               setIsSourceManagerOpen(false);
               setIsSourceManagerClosing(false);
-          }, 250); // Match animation duration (collapse-grid is 0.25s)
+              setIsAnimCentered(true); // Return to center
+          }, 300); // 300ms matches animation duration
       } else {
-          setIsSourceManagerOpen(true);
+          // Open Sequence: 1. Move Up, 2. Expand Grid
+          setIsAnimCentered(false); // Move to top
+          setTimeout(() => {
+              setIsSourceManagerOpen(true); // Expand drawer
+          }, 300); // Wait for move to complete
       }
   };
 
@@ -340,6 +351,34 @@ const App = () => {
       if (!id) return undefined;
       return sources.find(s => s.id === id)?.name;
   }, [sources]);
+  
+  // Drag and Drop Logic
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedSourceId(id);
+    e.dataTransfer.effectAllowed = "move";
+    // Optional: could set a drag image here if needed, but default is usually fine
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessary to allow dropping
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedSourceId || draggedSourceId === targetId) return;
+
+    const fromIndex = sources.findIndex(s => s.id === draggedSourceId);
+    const toIndex = sources.findIndex(s => s.id === targetId);
+
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const newSources = [...sources];
+    const [movedItem] = newSources.splice(fromIndex, 1);
+    newSources.splice(toIndex, 0, movedItem);
+
+    setSources(newSources);
+    setDraggedSourceId(null);
+  };
 
 
   const resetGame = useCallback(() => {
@@ -476,290 +515,305 @@ const App = () => {
     // MENU
     return (
       <div 
-        className={`flex flex-col items-center w-full max-w-4xl mx-auto z-10 relative transition-all duration-300 
-          ${isMenuCentered 
-            ? 'h-full justify-center overflow-y-auto py-10 px-4 md:px-0 custom-scrollbar' 
-            : 'h-full justify-start overflow-hidden pt-4 px-0' // Expanded: Fixed layout, internal scroll
-          }`}
+        className="flex flex-col h-full w-full max-w-4xl mx-auto z-10 relative overflow-hidden"
       >
         
         {vocab.length === 0 ? (
-          <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
-            <label className="flex flex-col items-center cursor-pointer">
-              <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
-              <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload Files / Load Progress</span>
-              <span className="text-xs md:text-sm text-monkey-sub text-center px-4">Supported: PDF, DOCX, TXT, .FORGE (Batch supported)</span>
-              <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
-            </label>
-            {error && (
-              <div className="mt-6 relative flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-3 pr-10 rounded text-sm animate-shake">
-                <AlertCircle size={16} className="shrink-0" /> 
-                <span>{error}</span>
-                <button 
-                  onClick={() => setError(null)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-monkey-error/20 rounded-md transition-colors text-monkey-error hover:text-red-400"
-                  title="Dismiss Error"
-                >
-                  <X size={16} />
-                </button>
+          <div className="flex-1 flex flex-col items-center justify-center px-4">
+              <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
+                <label className="flex flex-col items-center cursor-pointer">
+                  <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
+                  <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload Files / Load Progress</span>
+                  <span className="text-xs md:text-sm text-monkey-sub text-center px-4">Supported: PDF, DOCX, TXT, .FORGE (Batch supported)</span>
+                  <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
+                </label>
+                {error && (
+                  <div className="mt-6 relative flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-3 pr-10 rounded text-sm animate-shake">
+                    <AlertCircle size={16} className="shrink-0" /> 
+                    <span>{error}</span>
+                    <button 
+                      onClick={() => setError(null)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-monkey-error/20 rounded-md transition-colors text-monkey-error hover:text-red-400"
+                      title="Dismiss Error"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
           </div>
         ) : (
           <>
-            {/* Header Area */}
-            {/* When centered: Flows with content. When expanded: Fixed at top via flex-none */}
-            <div className={`w-full transition-all duration-300 z-40 flex-shrink-0 ${isMenuCentered ? 'mb-4' : 'px-4 md:px-0'}`}>
-                <div 
-                    className={`flex flex-col gap-2 px-4 py-3 bg-[#2c2e31]/95 backdrop-blur-xl shadow-sm transition-[border-radius] duration-200 ${
-                        (isSourceManagerOpen || isSourceManagerClosing) ? 'rounded-t-xl' : 'rounded-xl border border-monkey-sub/10'
-                    }`}
-                >
-                  <div className="flex justify-between items-center">
+            {/* Top Flexible Spacer */}
+            <div className={`transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] min-h-0 ${isAnimCentered ? 'flex-grow' : 'flex-grow-0'}`} />
+
+            {/* Content Container */}
+            <div className={`flex flex-col w-full transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isAnimCentered ? 'shrink min-h-0' : 'flex-grow min-h-0'}`}>
+                
+                {/* Header Area */}
+                <div className={`w-full shrink-0 z-40 px-4 md:px-0 transition-[margin] duration-300 ${isSourceManagerOpen || isSourceManagerClosing ? 'mb-0' : 'mb-4'}`}>
                     <div 
-                        className="flex items-center gap-2 cursor-pointer group mr-4 select-none"
-                        onClick={toggleSourceManager}
+                        className={`flex flex-col gap-2 px-4 py-3 bg-[#2c2e31]/95 backdrop-blur-xl shadow-sm transition-all duration-200 ${
+                            (isSourceManagerOpen || isSourceManagerClosing) 
+                                ? 'rounded-t-xl border-t border-x border-monkey-sub/20 border-b-transparent' 
+                                : 'rounded-xl border border-monkey-sub/10'
+                        }`}
                     >
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="font-mono text-sm">
-                            <span className="text-monkey-main">{activeVocab.length}<span className="md:inline"> active</span></span>
-                            <span className="text-monkey-sub mx-1">/</span>
-                            <span className="text-monkey-sub">{vocab.length}<span className="text-monkey-sub"> total</span></span>
-                        </span>
-                        <ChevronRight size={14} className={`text-monkey-sub transition-transform duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'rotate-90' : ''}`} />
-                    </div>
-                    
-                    <div className="flex items-center gap-4 md:gap-4">
-                      <button 
-                          onClick={handleExportProgress} 
-                          className="text-xs text-monkey-sub hover:text-monkey-main flex items-center gap-1 transition-colors"
-                          title="Save current progress"
-                      >
-                          <Save size={14} />
-                          <span className="hidden sm:inline">Save</span>
-                      </button>
+                    <div className="flex justify-between items-center">
+                        <div 
+                            className="flex items-center gap-2 cursor-pointer group mr-4 select-none"
+                            onClick={toggleSourceManager}
+                        >
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            <span className="font-mono text-sm">
+                                <span className="text-monkey-main">{activeVocab.length}<span className="md:inline"> active</span></span>
+                                <span className="text-monkey-sub mx-1">/</span>
+                                <span className="text-monkey-sub">{vocab.length}<span className="text-monkey-sub"> total</span></span>
+                            </span>
+                            <ChevronRight size={14} className={`text-monkey-sub transition-transform duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'rotate-90' : ''}`} />
+                        </div>
+                        
+                        <div className="flex items-center gap-4 md:gap-4">
+                        <button 
+                            onClick={handleExportProgress} 
+                            className="text-xs text-monkey-sub hover:text-monkey-main flex items-center gap-1 transition-colors"
+                            title="Save current progress"
+                        >
+                            <Save size={14} />
+                            <span className="hidden sm:inline">Save</span>
+                        </button>
 
-                      <div className="w-px h-4 bg-monkey-sub/20"></div>
+                        <div className="w-px h-4 bg-monkey-sub/20"></div>
 
-                      <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors">
-                          <FileUp size={14} />
-                          <span className="hidden sm:inline">Add/Replace</span>
-                          <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
-                      </label>
+                        <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors">
+                            <FileUp size={14} />
+                            <span className="hidden sm:inline">Add/Replace</span>
+                            <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
+                        </label>
+                        </div>
                     </div>
-                  </div>
 
-                  {/* Error Notification */}
-                  {error && (
-                    <div className="relative flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-2 pr-8 rounded text-xs animate-shake mt-1">
-                      <AlertCircle size={14} className="shrink-0" /> 
-                      <span>{error}</span>
-                      <button 
-                        onClick={() => setError(null)}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-monkey-error/20 rounded transition-colors text-monkey-error hover:text-red-400"
-                      >
-                        <X size={12} />
-                      </button>
+                    {/* Error Notification */}
+                    {error && (
+                        <div className="relative flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-2 pr-8 rounded text-xs animate-shake mt-1">
+                        <AlertCircle size={14} className="shrink-0" /> 
+                        <span>{error}</span>
+                        <button 
+                            onClick={() => setError(null)}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-monkey-error/20 rounded transition-colors text-monkey-error hover:text-red-400"
+                        >
+                            <X size={12} />
+                        </button>
+                        </div>
+                    )}
                     </div>
-                  )}
                 </div>
-            </div>
 
-            {/* Scrollable Content Body */}
-            {/* When centered: standard block. When expanded: independent scroll container */}
-            <div 
-                className={`w-full transition-all duration-300 
-                ${isMenuCentered 
-                    ? 'flex-shrink-0' 
-                    : 'flex-1 overflow-y-auto custom-scrollbar px-4 md:px-0 pb-4'
-                }`}
-            >
-                {/* Source Manager Panel */}
-                {(isSourceManagerOpen || isSourceManagerClosing) && (
-                      // ANIMATION WRAPPER: Handles Height & Margins Only. NO BORDERS/BG here.
-                      <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
-                          <div className="min-h-0">
-                            {/* VISUAL WRAPPER: Handles Borders, Background, Rounded Corners */}
-                            <div className="bg-[#252628] rounded-b-xl border-x border-b border-monkey-sub/20">
-                                <div className="flex items-center gap-2 mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#252628]">
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
-                                      className="text-monkey-sub hover:text-monkey-main transition-colors"
-                                      title={allSourcesEnabled ? "Deselect All" : "Select All"}
-                                    >
-                                        {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                                    </button>
-                                    <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
+                {/* Content Body */}
+                <div 
+                    className={`overflow-y-auto overflow-x-hidden custom-scrollbar px-4 md:px-0 pb-4 w-full ${isAnimCentered ? 'shrink' : 'flex-grow'}`}
+                >
+                    {/* Source Manager Panel */}
+                    {(isSourceManagerOpen || isSourceManagerClosing) && (
+                        <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
+                            <div className="min-h-0">
+                                {/* VISUAL WRAPPER */}
+                                <div className={`bg-[#2c2e31] rounded-b-xl border-x border-b border-monkey-sub/20 ${isSourceManagerClosing ? 'animate-slide-up-hide' : 'animate-slide-down-reveal'}`}>
+                                    <div className="flex items-center gap-2 mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#2c2e31]">
+                                        <button 
+                                        onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
+                                        className="text-monkey-sub hover:text-monkey-main transition-colors"
+                                        title={allSourcesEnabled ? "Deselect All" : "Select All"}
+                                        >
+                                            {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                        </button>
+                                        <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
+                                        {sources.map(source => (
+                                            <div 
+                                                key={source.id} 
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, source.id)}
+                                                onDragOver={handleDragOver}
+                                                onDrop={(e) => handleDrop(e, source.id)}
+                                                className={`flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-all group/item ${draggedSourceId === source.id ? 'opacity-40 bg-[#323437]' : ''}`}
+                                            >
+                                                {editingSourceId === source.id ? (
+                                                    <div className="flex items-center gap-2 flex-1 mr-2">
+                                                        <input 
+                                                            type="text" 
+                                                            value={editName}
+                                                            onChange={(e) => setEditName(e.target.value)}
+                                                            className="bg-[#323437] text-monkey-text px-2 py-1 rounded text-xs w-full border border-monkey-main outline-none"
+                                                            autoFocus
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') renameSource(source.id, editName);
+                                                                if (e.key === 'Escape') setEditingSourceId(null);
+                                                            }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
+                                                        <div className="flex items-center gap-3">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
+                                                            className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
+                                                        >
+                                                            <Check size={16} className="text-green-500 hover:text-green-400"/>
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
+                                                            className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
+                                                        >
+                                                            <X size={16} className="text-monkey-error hover:text-red-400"/>
+                                                        </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    {/* Drag Handle */}
+                                                    <div className="cursor-grab text-monkey-sub/30 hover:text-monkey-sub active:cursor-grabbing">
+                                                        <GripVertical size={14} />
+                                                    </div>
+                                                    
+                                                    <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
+                                                        {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                                    </button>
+                                                    <FileText size={14} className="text-monkey-sub shrink-0" />
+                                                    <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
+                                                        className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1"
+                                                        title="Rename"
+                                                    >
+                                                        <Pencil size={12} />
+                                                    </button>
+                                                    <span className="text-xs text-monkey-sub bg-monkey-sub/10 px-1 rounded ml-auto">{source.wordCount}</span>
+                                                </div>
+                                                )}
+                                                
+                                                <button 
+                                                onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
+                                                className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
+                                                title="Remove File"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
-                                    {sources.map(source => (
-                                        <div key={source.id} className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-colors group/item">
-                                            {editingSourceId === source.id ? (
-                                                <div className="flex items-center gap-2 flex-1 mr-2">
-                                                    <input 
-                                                        type="text" 
-                                                        value={editName}
-                                                        onChange={(e) => setEditName(e.target.value)}
-                                                        className="bg-[#323437] text-monkey-text px-2 py-1 rounded text-xs w-full border border-monkey-main outline-none"
-                                                        autoFocus
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') renameSource(source.id, editName);
-                                                            if (e.key === 'Escape') setEditingSourceId(null);
-                                                        }}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SEARCH BAR */}
+                    <div className="w-full mb-6 animate-fade-in-up relative z-30" style={{ animationDelay: '50ms' }}>
+                        <div className="relative group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
+                            <input 
+                                type="text" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search English words or Chinese definitions..."
+                                autoComplete="off"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text outline-none ring-0 appearance-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-colors placeholder:text-monkey-sub/50"
+                            />
+                            {searchQuery && (
+                                <button 
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-monkey-sub hover:text-monkey-text"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+                            
+                            {/* Search Results Dropdown */}
+                            {searchQuery && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-expand-vertical origin-top z-50">
+                                    {searchResults.length > 0 ? (
+                                        searchResults.map((item, idx) => (
+                                            <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <span className="font-bold text-monkey-main select-all">{item.word}</span>
+                                                    
+                                                    {/* Interactive Traffic Lights in Search */}
+                                                    <div 
+                                                        className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none"
+                                                        onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
+                                                        onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
+                                                        onTouchEnd={handleSearchLightSwipeEnd}
                                                         onClick={(e) => e.stopPropagation()}
-                                                    />
-                                                    <div className="flex items-center gap-3">
-                                                      <button 
-                                                          onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
-                                                          className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
-                                                      >
-                                                          <Check size={16} className="text-green-500 hover:text-green-400"/>
-                                                      </button>
-                                                      <button 
-                                                          onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
-                                                          className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
-                                                      >
-                                                          <X size={16} className="text-monkey-error hover:text-red-400"/>
-                                                      </button>
+                                                    >
+                                                        {[1, 2, 3].map(l => (
+                                                            <div 
+                                                                key={l} 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    // Click to set level directly. If clicking current level, reduce by 1 (toggle off)
+                                                                    const nextLevel = item.level === l ? l - 1 : l;
+                                                                    handleLevelUpdate(item.id, nextLevel);
+                                                                }}
+                                                                className={`w-3 h-3 rounded-full border border-monkey-sub/30 cursor-pointer transition-transform active:scale-90 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                                                            ></div>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                            ) : (
-                                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                  <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
-                                                      {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                                                  </button>
-                                                  <FileText size={14} className="text-monkey-sub shrink-0" />
-                                                  <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
-                                                  <button 
-                                                      onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
-                                                      className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1"
-                                                      title="Rename"
-                                                  >
-                                                      <Pencil size={12} />
-                                                  </button>
-                                                  <span className="text-xs text-monkey-sub bg-monkey-sub/10 px-1 rounded ml-auto">{source.wordCount}</span>
-                                              </div>
-                                            )}
-                                            
-                                            <button 
-                                              onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
-                                              className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
-                                              title="Remove File"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                          </div>
-                      </div>
-                  )}
-
-                {/* SEARCH BAR - REMOVED CONDITIONAL MARGIN TO PREVENT JUMP */}
-                <div className="w-full mb-6 animate-fade-in-up relative z-30" style={{ animationDelay: '50ms' }}>
-                     <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
-                        <input 
-                            type="text" 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search English words or Chinese definitions..."
-                            autoComplete="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text outline-none ring-0 appearance-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-colors placeholder:text-monkey-sub/50"
-                        />
-                        {searchQuery && (
-                            <button 
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-monkey-sub hover:text-monkey-text"
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
-                        
-                        {/* Search Results Dropdown */}
-                        {searchQuery && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-expand-vertical origin-top z-50">
-                                {searchResults.length > 0 ? (
-                                    searchResults.map((item, idx) => (
-                                        <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <span className="font-bold text-monkey-main select-all">{item.word}</span>
-                                                
-                                                {/* Interactive Traffic Lights in Search */}
-                                                <div 
-                                                    className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none"
-                                                    onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
-                                                    onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
-                                                    onTouchEnd={handleSearchLightSwipeEnd}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    {[1, 2, 3].map(l => (
-                                                        <div 
-                                                            key={l} 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                // Click to set level directly. If clicking current level, reduce by 1 (toggle off)
-                                                                const nextLevel = item.level === l ? l - 1 : l;
-                                                                handleLevelUpdate(item.id, nextLevel);
-                                                            }}
-                                                            className={`w-3 h-3 rounded-full border border-monkey-sub/30 cursor-pointer transition-transform active:scale-90 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
-                                                        ></div>
-                                                    ))}
-                                                </div>
+                                                <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
+                                                {item.sourceId && (
+                                                    <div className="text-[10px] text-monkey-sub/40 mt-1 truncate">
+                                                        {getSourceName(item.sourceId)}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
-                                            {item.sourceId && (
-                                                <div className="text-[10px] text-monkey-sub/40 mt-1 truncate">
-                                                    {getSourceName(item.sourceId)}
-                                                </div>
-                                            )}
+                                        ))
+                                    ) : (
+                                        <div className="p-4 text-center text-monkey-sub text-sm">
+                                            No words or definitions found matching "{searchQuery}"
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="p-4 text-center text-monkey-sub text-sm">
-                                        No words or definitions found matching "{searchQuery}"
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                     </div>
-                </div>
-                
-                {/* Game Modes */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                  <MenuCard 
-                    icon={<BookOpen size={24} />}
-                    title="Flashcards" 
-                    desc="Flip-card study" 
-                    delay={100}
-                    onClick={() => setMode(GameMode.FLASHCARD)} 
-                  />
-                  <MenuCard 
-                    icon={<BrainCircuit size={24} />}
-                    title="Quiz" 
-                    desc="4-choice test" 
-                    delay={200}
-                    onClick={() => setMode(GameMode.QUIZ)} 
-                  />
-                  <MenuCard 
-                    icon={<Gamepad2 size={24} />}
-                    title="Matching" 
-                    desc="Connect pairs" 
-                    delay={300}
-                    onClick={() => setMode(GameMode.MATCHING)} 
-                  />
-                  <MenuCard 
-                    icon={<ListChecks size={24} />}
-                    title="Word List" 
-                    desc="View & Mark" 
-                    delay={400}
-                    onClick={() => setMode(GameMode.WORD_LIST)} 
-                  />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Game Modes */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                        <MenuCard 
+                        icon={<BookOpen size={24} />}
+                        title="Flashcards" 
+                        desc="Flip-card study" 
+                        delay={100}
+                        onClick={() => setMode(GameMode.FLASHCARD)} 
+                        />
+                        <MenuCard 
+                        icon={<BrainCircuit size={24} />}
+                        title="Quiz" 
+                        desc="4-choice test" 
+                        delay={200}
+                        onClick={() => setMode(GameMode.QUIZ)} 
+                        />
+                        <MenuCard 
+                        icon={<Gamepad2 size={24} />}
+                        title="Matching" 
+                        desc="Connect pairs" 
+                        delay={300}
+                        onClick={() => setMode(GameMode.MATCHING)} 
+                        />
+                        <MenuCard 
+                        icon={<ListChecks size={24} />}
+                        title="Word List" 
+                        desc="View & Mark" 
+                        delay={400}
+                        onClick={() => setMode(GameMode.WORD_LIST)} 
+                        />
+                    </div>
                 </div>
             </div>
+
+            {/* Bottom Flexible Spacer */}
+            <div className={`transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] min-h-0 ${isAnimCentered ? 'flex-grow' : 'flex-grow-0'}`} />
           </>
         )}
       </div>

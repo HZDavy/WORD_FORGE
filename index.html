@@ -84,6 +84,8 @@
                 'collapse-vertical': 'collapseVertical 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 'expand-grid': 'expandGrid 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 'collapse-grid': 'collapseGrid 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                'slide-down-reveal': 'slideDownReveal 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                'slide-up-hide': 'slideUpHide 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
               },
               keyframes: {
                 shake: {
@@ -161,6 +163,14 @@
                 collapseGrid: {
                   '0%': { gridTemplateRows: '1fr', opacity: '1', marginBottom: '1rem' },
                   '100%': { gridTemplateRows: '0fr', opacity: '0', marginBottom: '0' }
+                },
+                slideDownReveal: {
+                  '0%': { transform: 'translateY(-1rem)', opacity: '0' },
+                  '100%': { transform: 'translateY(0)', opacity: '1' }
+                },
+                slideUpHide: {
+                  '0%': { transform: 'translateY(0)', opacity: '1' },
+                  '100%': { transform: 'translateY(-1rem)', opacity: '0' }
                 }
               }
             }
