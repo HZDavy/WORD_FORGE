@@ -75,6 +75,21 @@ const App = () => {
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
+  // Helper to Sort Vocab based on Source File Order + Original Index
+  const sortVocabBySourceOrder = useCallback((currentVocab: VocabularyItem[], currentSources: SourceFile[]) => {
+      const sourceRank = new Map(currentSources.map((s, i) => [s.id, i]));
+      return [...currentVocab].sort((a, b) => {
+          // 1. Primary Sort: Source Order in the list
+          const rankA = sourceRank.get(a.sourceId || '') ?? 99999;
+          const rankB = sourceRank.get(b.sourceId || '') ?? 99999;
+          
+          if (rankA !== rankB) return rankA - rankB;
+          
+          // 2. Secondary Sort: Original internal order (page order)
+          return a.originalIndex - b.originalIndex;
+      });
+  }, []);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = e.target;
     const files: File[] = target.files ? Array.from(target.files) : [];
@@ -355,21 +370,27 @@ const App = () => {
   const moveSourceUp = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
     if (index <= 0) return;
-    setSources(prev => {
-        const newSources = [...prev];
-        [newSources[index - 1], newSources[index]] = [newSources[index], newSources[index - 1]];
-        return newSources;
-    });
+    
+    // Create new array manually to get immediate state for vocab sort
+    const newSources = [...sources];
+    [newSources[index - 1], newSources[index]] = [newSources[index], newSources[index - 1]];
+    
+    setSources(newSources);
+    // Also re-sort vocabulary to match new file order immediately
+    setVocab(prev => sortVocabBySourceOrder(prev, newSources));
   };
 
   const moveSourceDown = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
     if (index >= sources.length - 1) return;
-    setSources(prev => {
-        const newSources = [...prev];
-        [newSources[index], newSources[index + 1]] = [newSources[index + 1], newSources[index]];
-        return newSources;
-    });
+    
+    // Create new array manually to get immediate state for vocab sort
+    const newSources = [...sources];
+    [newSources[index], newSources[index + 1]] = [newSources[index + 1], newSources[index]];
+    
+    setSources(newSources);
+    // Also re-sort vocabulary to match new file order immediately
+    setVocab(prev => sortVocabBySourceOrder(prev, newSources));
   };
 
   const resetGame = useCallback(() => {
@@ -412,8 +433,9 @@ const App = () => {
   }, []);
 
   const handleRestore = useCallback(() => {
-    setVocab(prev => [...prev].sort((a, b) => a.originalIndex - b.originalIndex));
-  }, []);
+    // Uses the helper to sort strictly by File List Order -> Internal Index
+    setVocab(prev => sortVocabBySourceOrder(prev, sources));
+  }, [sources, sortVocabBySourceOrder]);
 
   // --- Search Result Swipe Handlers ---
   const handleSearchLightSwipeStart = (e: React.TouchEvent, item: VocabularyItem) => {
