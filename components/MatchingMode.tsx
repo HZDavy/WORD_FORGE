@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem } from '../types';
-import { Shuffle, RotateCcw, X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Shuffle, RotateCcw, X, ArrowLeft, ArrowRight, List } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -48,7 +48,10 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   const [inspectedId, setInspectedId] = useState<string | null>(null);
   const longPressTimer = useRef<number | null>(null);
   
-  // Gesture State for Traffic Lights in Inspector
+  // Round List Modal State
+  const [showRoundList, setShowRoundList] = useState(false);
+  
+  // Gesture State for Traffic Lights in Inspector/List
   const lightStartX = useRef<number | null>(null);
   const lastLightUpdateX = useRef<number | null>(null);
 
@@ -59,6 +62,13 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       if (!inspectedId) return null;
       return filteredData.find(i => i.id === inspectedId) || null;
   }, [filteredData, inspectedId]);
+
+  // Derive current round items for the list view
+  const currentRoundItems = useMemo(() => {
+      const start = round * ITEMS_PER_ROUND;
+      const end = start + ITEMS_PER_ROUND;
+      return filteredData.slice(start, end);
+  }, [filteredData, round]);
 
   useEffect(() => {
     onSaveProgress(round);
@@ -141,7 +151,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   }, [round, activeLevels, resetVersion]); 
 
   const handleSelect = useCallback((uid: string) => {
-    if (isWait || inspectedId) return;
+    if (isWait || inspectedId || showRoundList) return;
     
     const clicked = bubbles.find(b => b.uid === uid);
     if (!clicked || clicked.matched) return;
@@ -198,7 +208,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
         setIsWait(false);
       }, 800);
     }
-  }, [bubbles, selectedId, isWait, round, totalRounds, inspectedId]);
+  }, [bubbles, selectedId, isWait, round, totalRounds, inspectedId, showRoundList]);
 
   // --- Long Press & Inspection Logic ---
   const handleTouchStart = (id: string) => {
@@ -214,10 +224,10 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       }
   };
 
-  // --- Inspector Traffic Light Logic ---
-  const handleLevelClick = (e: React.MouseEvent, level: number) => {
+  // --- Traffic Light Logic (Shared for Inspector & List) ---
+  const handleLevelClick = (e: React.MouseEvent, id: string, level: number) => {
       e.stopPropagation();
-      if (inspectedItem) onUpdateLevel(inspectedItem.id, level);
+      onUpdateLevel(id, level);
   };
 
   const handleLightTouchStart = (e: React.TouchEvent) => {
@@ -226,9 +236,9 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       lastLightUpdateX.current = e.touches[0].clientX;
   };
 
-  const handleLightTouchMove = (e: React.TouchEvent) => {
+  const handleLightTouchMove = (e: React.TouchEvent, item: VocabularyItem) => {
       e.stopPropagation();
-      if (lastLightUpdateX.current === null || !inspectedItem) return;
+      if (lastLightUpdateX.current === null) return;
 
       const currentX = e.touches[0].clientX;
       const diff = currentX - lastLightUpdateX.current;
@@ -237,14 +247,14 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       if (Math.abs(diff) > THRESHOLD) {
           if (diff > 0) {
               // Right
-              if (inspectedItem.level < 3) {
-                  onUpdateLevel(inspectedItem.id, inspectedItem.level + 1);
+              if (item.level < 3) {
+                  onUpdateLevel(item.id, item.level + 1);
                   lastLightUpdateX.current = currentX;
               }
           } else {
               // Left
-              if (inspectedItem.level > 0) {
-                  onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
+              if (item.level > 0) {
+                  onUpdateLevel(item.id, item.level - 1);
                   lastLightUpdateX.current = currentX;
               }
           }
@@ -261,7 +271,15 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       const handleKey = (e: KeyboardEvent) => {
           if (e.code === 'Escape') {
               if (inspectedId) setInspectedId(null);
+              else if (showRoundList) setShowRoundList(false);
               else onExit();
+          }
+
+          if (e.code === 'Space') {
+              e.preventDefault();
+              if (!inspectedId) {
+                  setShowRoundList(prev => !prev);
+              }
           }
           
           if (inspectedItem) {
@@ -272,8 +290,8 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
                  e.preventDefault();
                  if (inspectedItem.level > 0) onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
               }
-          } else {
-              // Navigation controls when not inspecting
+          } else if (!showRoundList) {
+              // Navigation controls when not inspecting and not in list mode
               if (e.code === 'ArrowLeft') {
                   handlePrev();
               } else if (e.code === 'ArrowRight') {
@@ -283,7 +301,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       }
       window.addEventListener('keydown', handleKey);
       return () => window.removeEventListener('keydown', handleKey);
-  }, [onExit, inspectedId, inspectedItem, onUpdateLevel, handlePrev, handleNext]);
+  }, [onExit, inspectedId, inspectedItem, onUpdateLevel, handlePrev, handleNext, showRoundList]);
 
 
   if (filteredData.length === 0) {
@@ -346,6 +364,14 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
             </div>
         </div>
         <div className="flex gap-2">
+            <button 
+                onClick={() => setShowRoundList(true)}
+                className={`p-2 transition-colors ${showRoundList ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
+                title="View Round List (Space)"
+            >
+                <List size={18} />
+            </button>
+            <div className="w-px h-8 bg-monkey-sub/20 mx-1"></div>
             <button onClick={() => { restart(); onShuffle(); setResetVersion(v => v + 1); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
             <button onClick={() => { restart(); onRestore(); setResetVersion(v => v + 1); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
         </div>
@@ -460,13 +486,13 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
                   <div 
                     className="flex gap-2 mb-6 p-4 cursor-ew-resize touch-none"
                     onTouchStart={handleLightTouchStart}
-                    onTouchMove={handleLightTouchMove}
+                    onTouchMove={(e) => handleLightTouchMove(e, inspectedItem)}
                     onTouchEnd={handleLightTouchEnd}
                   >
                       {[1, 2, 3].map(l => (
                             <div 
                             key={l}
-                            onClick={(e) => handleLevelClick(e, l)}
+                            onClick={(e) => handleLevelClick(e, inspectedItem.id, l)}
                             className={`w-6 h-6 rounded-full border-2 border-monkey-sub/50 cursor-pointer transition-transform ${inspectedItem.level >= l ? (inspectedItem.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
                             ></div>
                         ))}
@@ -482,10 +508,65 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
           </div>,
           document.body
       )}
+
+      {/* ROUND LIST MODAL */}
+      {showRoundList && createPortal(
+          <div 
+             className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
+             onClick={() => setShowRoundList(false)}
+          >
+              <div 
+                 className="bg-[#2c2e31] border border-monkey-sub/30 rounded-xl w-full max-w-lg mx-4 flex flex-col max-h-[80vh] animate-game-pop-in shadow-2xl"
+                 onClick={(e) => e.stopPropagation()}
+              >
+                  {/* Header */}
+                  <div className="flex justify-between items-center p-4 border-b border-monkey-sub/20 bg-[#2c2e31] rounded-t-xl">
+                      <h3 className="text-xl font-bold text-monkey-text">Round {round + 1} Words</h3>
+                      <button 
+                        onClick={() => setShowRoundList(false)}
+                        className="p-1 text-monkey-sub hover:text-monkey-text rounded-lg hover:bg-monkey-sub/10 transition-colors"
+                      >
+                          <X size={20} />
+                      </button>
+                  </div>
+
+                  {/* Scrollable List */}
+                  <div className="overflow-y-auto p-4 flex flex-col gap-2 custom-scrollbar">
+                      {currentRoundItems.map(item => (
+                          <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-[#323437] border border-monkey-sub/10 hover:border-monkey-sub/30 transition-colors">
+                              {/* Word Info */}
+                              <div className="flex-1 min-w-0">
+                                  <div className="text-lg font-bold text-monkey-main truncate">{item.word}</div>
+                                  <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
+                              </div>
+
+                              {/* Traffic Lights */}
+                              <div 
+                                className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none flex-shrink-0"
+                                onTouchStart={handleLightTouchStart}
+                                onTouchMove={(e) => handleLightTouchMove(e, item)}
+                                onTouchEnd={handleLightTouchEnd}
+                              >
+                                  {[1, 2, 3].map(l => (
+                                      <div 
+                                          key={l}
+                                          onClick={(e) => handleLevelClick(e, item.id, item.level === l ? l - 1 : l)}
+                                          className={`w-3 h-3 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform active:scale-90 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                                      ></div>
+                                  ))}
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
       
       {/* Keyboard Legend */}
       <div className="mb-2 text-[10px] text-monkey-sub/30 hidden md:block">
           <span>Long Press: Inspect</span>
+          <span>Space: Word List</span>
           <span>←/→: Prev/Next</span>
           <span>Esc: Exit</span>
       </div>
