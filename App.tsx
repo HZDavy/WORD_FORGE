@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
@@ -528,7 +529,7 @@ const App = () => {
     // MENU
     return (
       <div 
-        className="flex flex-col h-full w-full mx-auto z-10 relative overflow-hidden"
+        className="flex flex-col h-full w-full mx-auto z-10 relative"
       >
         
         {vocab.length === 0 ? (
@@ -560,8 +561,8 @@ const App = () => {
             {/* Top Flexible Spacer */}
             <div className={`transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] min-h-0 ${isAnimCentered ? 'flex-grow' : 'flex-grow-0'}`} />
 
-            {/* Content Container */}
-            <div className={`flex flex-col w-full transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isAnimCentered ? 'shrink min-h-0' : 'flex-grow min-h-0'}`}>
+            {/* Content Container Wrapper to handle centering animation on the group */}
+            <div className={`flex flex-col w-full transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isAnimCentered ? 'shrink min-h-0' : 'flex-grow min-h-0'}`}>
                 
                 {/* Header Area */}
                 <div className={`w-full shrink-0 z-40 mb-0`}>
@@ -622,11 +623,11 @@ const App = () => {
                     </div>
                 </div>
 
-                {/* Content Body */}
-                <div 
-                    className={`overflow-y-auto overflow-x-hidden custom-scrollbar pb-4 w-full ${isAnimCentered ? 'shrink' : 'flex-grow'}`}
-                >
-                    <div className="max-w-4xl mx-auto">
+                {/* CONTROLS AREA (NON-SCROLLING, Z-INDEX HIGH) */}
+                {/* This section holds the Source Manager and Search Bar. It does not scroll. */}
+                {/* This prevents the search dropdown from being clipped by overflow:hidden/auto of the content body */}
+                <div className="w-full shrink-0 z-30 relative">
+                     <div className="max-w-4xl mx-auto">
                         {/* Source Manager Panel */}
                         {(isSourceManagerOpen || isSourceManagerClosing) && (
                             <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
@@ -744,10 +745,10 @@ const App = () => {
                             </div>
                         )}
 
-                        {/* SEARCH BAR */}
+                        {/* SEARCH BAR (Sticky/Fixed relative to content) */}
                         <div className={`w-full mb-6 animate-fade-in-up relative z-30 transition-[margin] duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'mt-0' : 'mt-4'}`} style={{ animationDelay: '50ms' }}>
                             <div className="relative group">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
+                                <Search className="absolute left-4 top-1/2 -translate-x-0 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
                                 <input 
                                     type="text" 
                                     value={searchQuery}
@@ -756,7 +757,7 @@ const App = () => {
                                     autoComplete="off"
                                     autoCorrect="off"
                                     spellCheck={false}
-                                    className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text outline-none ring-0 appearance-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-colors placeholder:text-monkey-sub/50"
+                                    className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-12 pr-10 text-monkey-text outline-none ring-0 appearance-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-colors placeholder:text-monkey-sub/50"
                                 />
                                 {searchQuery && (
                                     <button 
@@ -767,9 +768,9 @@ const App = () => {
                                     </button>
                                 )}
                                 
-                                {/* Search Results Dropdown */}
+                                {/* Search Results Dropdown - Absolute to overlay content */}
                                 {searchQuery && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-expand-vertical origin-top z-50">
+                                    <div className="absolute top-full left-0 w-full mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-[60vh] overflow-y-auto custom-scrollbar z-50 overscroll-contain">
                                         {searchResults.length > 0 ? (
                                             searchResults.map((item, idx) => (
                                                 <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
@@ -815,8 +816,16 @@ const App = () => {
                                 )}
                             </div>
                         </div>
+                     </div>
+                </div>
+
+                {/* Content Body (SCROLLABLE) */}
+                <div 
+                    className={`overflow-y-auto overflow-x-hidden custom-scrollbar pb-4 w-full ${isAnimCentered ? 'shrink' : 'flex-grow'}`}
+                >
+                    <div className="max-w-4xl mx-auto">
                         
-                        {/* Game Modes */}
+                        {/* Game Modes Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                             <MenuCard 
                             icon={<BookOpen size={24} />}
