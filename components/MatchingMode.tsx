@@ -165,7 +165,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 md:gap-4 justify-center content-start flex-grow pb-10 px-2 md:px-4 overflow-y-auto">
+      <div className="flex flex-wrap gap-2 md:gap-4 justify-center content-start flex-grow pb-10 pt-4 px-2 md:px-4 overflow-y-auto">
         {bubbles.map((b, idx) => {
            const isWord = b.type === 'word';
            
