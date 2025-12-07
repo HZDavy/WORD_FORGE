@@ -506,11 +506,11 @@ const App = () => {
     // MENU
     return (
       <div 
-        className="flex flex-col h-full w-full max-w-4xl mx-auto z-10 relative overflow-hidden"
+        className="flex flex-col h-full w-full mx-auto z-10 relative overflow-hidden"
       >
         
         {vocab.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 max-w-4xl mx-auto w-full">
               <div className="w-full max-w-xl p-6 md:p-10 border-2 border-dashed border-monkey-sub/30 rounded-xl hover:border-monkey-main/50 transition-colors bg-[#2c2e31]/80 backdrop-blur-sm group flex-shrink-0 animate-pop-in">
                 <label className="flex flex-col items-center cursor-pointer">
                   <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
@@ -542,9 +542,9 @@ const App = () => {
             <div className={`flex flex-col w-full transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isAnimCentered ? 'shrink min-h-0' : 'flex-grow min-h-0'}`}>
                 
                 {/* Header Area */}
-                <div className={`w-full shrink-0 z-40 px-4 md:px-0 transition-[margin] duration-300 ${isSourceManagerOpen || isSourceManagerClosing ? 'mb-0' : 'mb-4'}`}>
+                <div className={`w-full shrink-0 z-40 mb-0`}>
                     <div 
-                        className={`flex flex-col gap-2 px-4 py-3 bg-[#2c2e31]/95 backdrop-blur-xl shadow-sm transition-all duration-200 ${
+                        className={`flex flex-col gap-2 px-4 py-3 bg-[#2c2e31]/95 backdrop-blur-xl shadow-sm transition-all duration-300 max-w-4xl mx-auto ${
                             (isSourceManagerOpen || isSourceManagerClosing) 
                                 ? 'rounded-t-xl border-t border-x border-monkey-sub/20 border-b-transparent' 
                                 : 'rounded-xl border border-monkey-sub/10'
@@ -602,227 +602,229 @@ const App = () => {
 
                 {/* Content Body */}
                 <div 
-                    className={`overflow-y-auto overflow-x-hidden custom-scrollbar px-4 md:px-0 pb-4 w-full ${isAnimCentered ? 'shrink' : 'flex-grow'}`}
+                    className={`overflow-y-auto overflow-x-hidden custom-scrollbar pb-4 w-full ${isAnimCentered ? 'shrink' : 'flex-grow'}`}
                 >
-                    {/* Source Manager Panel */}
-                    {(isSourceManagerOpen || isSourceManagerClosing) && (
-                        <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
-                            <div className="min-h-0">
-                                {/* VISUAL WRAPPER */}
-                                <div className={`bg-[#2c2e31] rounded-b-xl border-x border-b border-monkey-sub/20 overflow-hidden ${isSourceManagerClosing ? 'animate-slide-up-hide' : 'animate-slide-down-reveal'}`}>
-                                    <div className="flex items-center justify-between mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#2c2e31]">
-                                        <div className="flex items-center gap-2">
-                                            <button 
-                                            onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
-                                            className="text-monkey-sub hover:text-monkey-main transition-colors"
-                                            title={allSourcesEnabled ? "Deselect All" : "Select All"}
-                                            >
-                                                {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                                            </button>
-                                            <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
-                                        </div>
-                                        <button 
-                                            onClick={() => setIsSortMode(!isSortMode)}
-                                            className={`p-1.5 rounded transition-all ${isSortMode ? 'bg-monkey-main text-monkey-bg' : 'text-monkey-sub hover:bg-monkey-sub/10'}`}
-                                            title="Toggle Sort Mode"
-                                        >
-                                            <ArrowDownUp size={16} />
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
-                                        {sources.map((source, index) => (
-                                            <div 
-                                                key={source.id} 
-                                                className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-all group/item select-none"
-                                            >
-                                                {editingSourceId === source.id ? (
-                                                    <div className="flex items-center gap-2 flex-1 mr-2">
-                                                        <input 
-                                                            type="text" 
-                                                            value={editName}
-                                                            onChange={(e) => setEditName(e.target.value)}
-                                                            className="bg-[#323437] text-monkey-text px-2 py-1 rounded text-xs w-full border border-monkey-main outline-none"
-                                                            autoFocus
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') renameSource(source.id, editName);
-                                                                if (e.key === 'Escape') setEditingSourceId(null);
-                                                            }}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        />
-                                                        <div className="flex items-center gap-3">
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
-                                                            className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
-                                                        >
-                                                            <Check size={16} className="text-green-500 hover:text-green-400"/>
-                                                        </button>
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
-                                                            className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
-                                                        >
-                                                            <X size={16} className="text-monkey-error hover:text-red-400"/>
-                                                        </button>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                <div className="flex items-center flex-1 min-w-0">
-                                                    {/* Animated Sorting Controls */}
-                                                    <div className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex-shrink-0 ${isSortMode ? 'max-w-[4.5rem] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}>
-                                                        <button 
-                                                            onClick={(e) => moveSourceUp(e, index)}
-                                                            disabled={index === 0 || !isSortMode}
-                                                            className="p-2 bg-monkey-sub/10 hover:bg-monkey-main hover:text-monkey-bg rounded text-monkey-sub disabled:opacity-20 transition-colors"
-                                                            title="Move Up"
-                                                        >
-                                                            <ChevronUp size={16} />
-                                                        </button>
-                                                        <button 
-                                                            onClick={(e) => moveSourceDown(e, index)}
-                                                            disabled={index === sources.length - 1 || !isSortMode}
-                                                            className="p-2 bg-monkey-sub/10 hover:bg-monkey-main hover:text-monkey-bg rounded text-monkey-sub disabled:opacity-20 transition-colors"
-                                                            title="Move Down"
-                                                        >
-                                                            <ChevronDown size={16} />
-                                                        </button>
-                                                    </div>
-                                                    
-                                                    {/* Selection Controls - Hide in Sort Mode */}
-                                                    <div className={`flex items-center gap-2 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex-shrink-0 ${!isSortMode ? 'max-w-[3rem] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}>
-                                                        <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
-                                                            {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                                                        </button>
-                                                        <FileText size={14} className="text-monkey-sub shrink-0" />
-                                                    </div>
-
-                                                    <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
-                                                        className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1 ml-2"
-                                                        title="Rename"
-                                                    >
-                                                        <Pencil size={12} />
-                                                    </button>
-                                                    <span className="text-xs text-monkey-sub bg-monkey-sub/10 px-1 rounded ml-auto">{source.wordCount}</span>
-                                                </div>
-                                                )}
-                                                
+                    <div className="max-w-4xl mx-auto">
+                        {/* Source Manager Panel */}
+                        {(isSourceManagerOpen || isSourceManagerClosing) && (
+                            <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
+                                <div className="min-h-0">
+                                    {/* VISUAL WRAPPER */}
+                                    <div className={`bg-[#2c2e31] rounded-b-xl border-x border-b border-monkey-sub/20 overflow-hidden`}>
+                                        <div className="flex items-center justify-between mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#2c2e31]">
+                                            <div className="flex items-center gap-2">
                                                 <button 
-                                                onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
-                                                className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
-                                                title="Remove File"
+                                                onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
+                                                className="text-monkey-sub hover:text-monkey-main transition-colors"
+                                                title={allSourcesEnabled ? "Deselect All" : "Select All"}
                                                 >
-                                                    <Trash2 size={14} />
+                                                    {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
                                                 </button>
+                                                <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
                                             </div>
-                                        ))}
+                                            <button 
+                                                onClick={() => setIsSortMode(!isSortMode)}
+                                                className={`p-1.5 rounded transition-all ${isSortMode ? 'bg-monkey-main text-monkey-bg' : 'text-monkey-sub hover:bg-monkey-sub/10'}`}
+                                                title="Toggle Sort Mode"
+                                            >
+                                                <ArrowDownUp size={16} />
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
+                                            {sources.map((source, index) => (
+                                                <div 
+                                                    key={source.id} 
+                                                    className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-all group/item select-none"
+                                                >
+                                                    {editingSourceId === source.id ? (
+                                                        <div className="flex items-center gap-2 flex-1 mr-2">
+                                                            <input 
+                                                                type="text" 
+                                                                value={editName}
+                                                                onChange={(e) => setEditName(e.target.value)}
+                                                                className="bg-[#323437] text-monkey-text px-2 py-1 rounded text-xs w-full border border-monkey-main outline-none"
+                                                                autoFocus
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') renameSource(source.id, editName);
+                                                                    if (e.key === 'Escape') setEditingSourceId(null);
+                                                                }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                            <div className="flex items-center gap-3">
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); renameSource(source.id, editName); }}
+                                                                className="p-1.5 hover:bg-green-500/10 rounded transition-colors"
+                                                            >
+                                                                <Check size={16} className="text-green-500 hover:text-green-400"/>
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); setEditingSourceId(null); }}
+                                                                className="p-1.5 hover:bg-monkey-error/10 rounded transition-colors"
+                                                            >
+                                                                <X size={16} className="text-monkey-error hover:text-red-400"/>
+                                                            </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                    <div className="flex items-center flex-1 min-w-0">
+                                                        {/* Animated Sorting Controls */}
+                                                        <div className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex-shrink-0 ${isSortMode ? 'max-w-[4.5rem] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}>
+                                                            <button 
+                                                                onClick={(e) => moveSourceUp(e, index)}
+                                                                disabled={index === 0 || !isSortMode}
+                                                                className="p-2 bg-monkey-sub/10 hover:bg-monkey-main hover:text-monkey-bg rounded text-monkey-sub disabled:opacity-20 transition-colors"
+                                                                title="Move Up"
+                                                            >
+                                                                <ChevronUp size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => moveSourceDown(e, index)}
+                                                                disabled={index === sources.length - 1 || !isSortMode}
+                                                                className="p-2 bg-monkey-sub/10 hover:bg-monkey-main hover:text-monkey-bg rounded text-monkey-sub disabled:opacity-20 transition-colors"
+                                                                title="Move Down"
+                                                            >
+                                                                <ChevronDown size={16} />
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        {/* Selection Controls - Hide in Sort Mode */}
+                                                        <div className={`flex items-center gap-2 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex-shrink-0 ${!isSortMode ? 'max-w-[3rem] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}>
+                                                            <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
+                                                                {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                                            </button>
+                                                            <FileText size={14} className="text-monkey-sub shrink-0" />
+                                                        </div>
+
+                                                        <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
+                                                            className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1 ml-2"
+                                                            title="Rename"
+                                                        >
+                                                            <Pencil size={12} />
+                                                        </button>
+                                                        <span className="text-xs text-monkey-sub bg-monkey-sub/10 px-1 rounded ml-auto">{source.wordCount}</span>
+                                                    </div>
+                                                    )}
+                                                    
+                                                    <button 
+                                                    onClick={(e) => { e.stopPropagation(); requestDeleteSource(source.id); }} 
+                                                    className="p-1 text-monkey-sub hover:text-monkey-error transition-colors ml-2"
+                                                    title="Remove File"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* SEARCH BAR */}
-                    <div className="w-full mb-6 animate-fade-in-up relative z-30" style={{ animationDelay: '50ms' }}>
-                        <div className="relative group">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
-                            <input 
-                                type="text" 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search English words or Chinese definitions..."
-                                autoComplete="off"
-                                autoCorrect="off"
-                                spellCheck={false}
-                                className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text outline-none ring-0 appearance-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-colors placeholder:text-monkey-sub/50"
-                            />
-                            {searchQuery && (
-                                <button 
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-monkey-sub hover:text-monkey-text"
-                                >
-                                    <X size={16} />
-                                </button>
-                            )}
-                            
-                            {/* Search Results Dropdown */}
-                            {searchQuery && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-expand-vertical origin-top z-50">
-                                    {searchResults.length > 0 ? (
-                                        searchResults.map((item, idx) => (
-                                            <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <span className="font-bold text-monkey-main select-all">{item.word}</span>
-                                                    
-                                                    {/* Interactive Traffic Lights in Search */}
-                                                    <div 
-                                                        className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none"
-                                                        onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
-                                                        onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
-                                                        onTouchEnd={handleSearchLightSwipeEnd}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {[1, 2, 3].map(l => (
-                                                            <div 
-                                                                key={l} 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    // Click to set level directly. If clicking current level, reduce by 1 (toggle off)
-                                                                    const nextLevel = item.level === l ? l - 1 : l;
-                                                                    handleLevelUpdate(item.id, nextLevel);
-                                                                }}
-                                                                className={`w-3 h-3 rounded-full border border-monkey-sub/30 cursor-pointer transition-transform active:scale-90 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
-                                                            ></div>
-                                                        ))}
+                        {/* SEARCH BAR */}
+                        <div className={`w-full mb-6 animate-fade-in-up relative z-30 transition-[margin] duration-300 ${isSourceManagerOpen && !isSourceManagerClosing ? 'mt-0' : 'mt-4'}`} style={{ animationDelay: '50ms' }}>
+                            <div className="relative group">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
+                                <input 
+                                    type="text" 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search English words or Chinese definitions..."
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    className="w-full bg-[#2c2e31]/50 border border-monkey-sub/20 rounded-xl py-3 pl-10 pr-10 text-monkey-text outline-none ring-0 appearance-none focus:border-monkey-main/50 focus:bg-[#2c2e31] transition-colors placeholder:text-monkey-sub/50"
+                                />
+                                {searchQuery && (
+                                    <button 
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-monkey-sub hover:text-monkey-text"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                                
+                                {/* Search Results Dropdown */}
+                                {searchQuery && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-expand-vertical origin-top z-50">
+                                        {searchResults.length > 0 ? (
+                                            searchResults.map((item, idx) => (
+                                                <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <span className="font-bold text-monkey-main select-all">{item.word}</span>
+                                                        
+                                                        {/* Interactive Traffic Lights in Search */}
+                                                        <div 
+                                                            className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none"
+                                                            onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
+                                                            onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
+                                                            onTouchEnd={handleSearchLightSwipeEnd}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {[1, 2, 3].map(l => (
+                                                                <div 
+                                                                    key={l} 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        // Click to set level directly. If clicking current level, reduce by 1 (toggle off)
+                                                                        const nextLevel = item.level === l ? l - 1 : l;
+                                                                        handleLevelUpdate(item.id, nextLevel);
+                                                                    }}
+                                                                    className={`w-3 h-3 rounded-full border border-monkey-sub/30 cursor-pointer transition-transform active:scale-90 ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                                                                ></div>
+                                                            ))}
+                                                        </div>
                                                     </div>
+                                                    <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
+                                                    {item.sourceId && (
+                                                        <div className="text-[10px] text-monkey-sub/40 mt-1 truncate">
+                                                            {getSourceName(item.sourceId)}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
-                                                {item.sourceId && (
-                                                    <div className="text-[10px] text-monkey-sub/40 mt-1 truncate">
-                                                        {getSourceName(item.sourceId)}
-                                                    </div>
-                                                )}
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center text-monkey-sub text-sm">
+                                                No words or definitions found matching "{searchQuery}"
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-4 text-center text-monkey-sub text-sm">
-                                            No words or definitions found matching "{searchQuery}"
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                    
-                    {/* Game Modes */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                        <MenuCard 
-                        icon={<BookOpen size={24} />}
-                        title="Flashcards" 
-                        desc="Flip-card study" 
-                        delay={100}
-                        onClick={() => setMode(GameMode.FLASHCARD)} 
-                        />
-                        <MenuCard 
-                        icon={<BrainCircuit size={24} />}
-                        title="Quiz" 
-                        desc="4-choice test" 
-                        delay={200}
-                        onClick={() => setMode(GameMode.QUIZ)} 
-                        />
-                        <MenuCard 
-                        icon={<Gamepad2 size={24} />}
-                        title="Matching" 
-                        desc="Connect pairs" 
-                        delay={300}
-                        onClick={() => setMode(GameMode.MATCHING)} 
-                        />
-                        <MenuCard 
-                        icon={<ListChecks size={24} />}
-                        title="Word List" 
-                        desc="View & Mark" 
-                        delay={400}
-                        onClick={() => setMode(GameMode.WORD_LIST)} 
-                        />
+                        
+                        {/* Game Modes */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                            <MenuCard 
+                            icon={<BookOpen size={24} />}
+                            title="Flashcards" 
+                            desc="Flip-card study" 
+                            delay={100}
+                            onClick={() => setMode(GameMode.FLASHCARD)} 
+                            />
+                            <MenuCard 
+                            icon={<BrainCircuit size={24} />}
+                            title="Quiz" 
+                            desc="4-choice test" 
+                            delay={200}
+                            onClick={() => setMode(GameMode.QUIZ)} 
+                            />
+                            <MenuCard 
+                            icon={<Gamepad2 size={24} />}
+                            title="Matching" 
+                            desc="Connect pairs" 
+                            delay={300}
+                            onClick={() => setMode(GameMode.MATCHING)} 
+                            />
+                            <MenuCard 
+                            icon={<ListChecks size={24} />}
+                            title="Word List" 
+                            desc="View & Mark" 
+                            delay={400}
+                            onClick={() => setMode(GameMode.WORD_LIST)} 
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
