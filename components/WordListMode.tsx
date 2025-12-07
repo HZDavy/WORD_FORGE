@@ -14,10 +14,108 @@ interface Props {
   onGetSourceName: (id: string) => string | undefined;
 }
 
+// Optimized Row Component
+const WordRow = React.memo(({ 
+  item, 
+  idx, 
+  isDefVisible, 
+  isSelected, 
+  showSource, 
+  sourceName,
+  onRowClick,
+  onLightSwipeStart,
+  onLightSwipeMove,
+  onLightSwipeEnd,
+  onLevelClick,
+  onWordCycle,
+  onToggleDef
+}: {
+  item: VocabularyItem;
+  idx: number;
+  isDefVisible: boolean;
+  isSelected: boolean;
+  showSource: boolean;
+  sourceName?: string;
+  onRowClick: (e: React.MouseEvent, idx: number) => void;
+  onLightSwipeStart: (e: React.TouchEvent, idx: number) => void;
+  onLightSwipeMove: (e: React.TouchEvent, item: VocabularyItem) => void;
+  onLightSwipeEnd: () => void;
+  onLevelClick: (e: React.MouseEvent, id: string, level: number, idx: number) => void;
+  onWordCycle: (e: React.MouseEvent, item: VocabularyItem, idx: number) => void;
+  onToggleDef: (e: React.MouseEvent, id: string, idx: number) => void;
+}) => {
+  return (
+      <div 
+          id={`word-row-${idx}`}
+          onClick={(e) => onRowClick(e, idx)} 
+          className={`flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}`}
+      >
+          {/* Traffic Lights Column */}
+          <div 
+              className="flex justify-between items-center mb-2 md:mb-0 md:justify-center gap-1 touch-none cursor-ew-resize md:py-3"
+              onTouchStart={(e) => onLightSwipeStart(e, idx)}
+              onTouchMove={(e) => onLightSwipeMove(e, item)}
+              onTouchEnd={onLightSwipeEnd}
+          >
+              <span className="text-xs text-monkey-sub font-bold uppercase md:hidden">Level</span>
+               <div className="flex gap-1">
+                  {[1, 2, 3].map(l => (
+                      <div 
+                          key={l}
+                          onClick={(e) => onLevelClick(e, item.id, item.level === l ? l - 1 : l, idx)}
+                          className={`w-3 h-3 md:w-2 md:h-2 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
+                      ></div>
+                  ))}
+               </div>
+          </div>
+
+          {/* Word Column */}
+          <div 
+              className="text-xl md:text-lg font-bold text-monkey-text select-text hover:text-white transition-colors mb-2 md:mb-0 md:py-3 flex flex-wrap items-center gap-2"
+              onClick={(e) => { e.stopPropagation(); onWordCycle(e, item, idx); }}
+          >
+              {item.word}
+              {sourceName && (
+                  <span className="text-[10px] bg-monkey-sub/20 text-monkey-sub px-1.5 py-0.5 rounded font-normal align-middle truncate max-w-[120px]">
+                      {sourceName}
+                  </span>
+              )}
+          </div>
+
+          {/* Definition Column */}
+          <div 
+              className="cursor-pointer relative group leading-relaxed md:py-3 min-h-[1.5em]"
+              onClick={(e) => { e.stopPropagation(); onToggleDef(e, item.id, idx); }}
+          >
+              <span 
+                className={`
+                  rounded px-1
+                  ${isDefVisible 
+                    ? 'bg-transparent text-gray-200' 
+                    : 'bg-[#3f4145] text-transparent select-none hover:bg-[#4a4c50] box-decoration-clone' 
+                  }
+                `}
+              >
+                  {item.definition}
+              </span>
+          </div>
+      </div>
+  );
+}, (prev, next) => {
+    // Custom comparison for performance
+    return (
+        prev.item === next.item && 
+        prev.idx === next.idx &&
+        prev.isDefVisible === next.isDefVisible &&
+        prev.isSelected === next.isSelected &&
+        prev.showSource === next.showSource &&
+        prev.sourceName === next.sourceName
+    );
+});
+
 export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onResetLevels, onShuffle, onRestore, onGetSourceName }) => {
   const [showAllDefs, setShowAllDefs] = useState(false);
   const [visibleDefs, setVisibleDefs] = useState<Set<string>>(new Set());
-  const [isBulkToggling, setIsBulkToggling] = useState(false);
   
   // Display Options
   const [showSource, setShowSource] = useState(false);
@@ -95,14 +193,12 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       handleCloseModal();
   };
 
-  const toggleAll = () => {
-    setIsBulkToggling(true);
-    setShowAllDefs(!showAllDefs);
+  const toggleAll = useCallback(() => {
+    setShowAllDefs(prev => !prev);
     setVisibleDefs(new Set()); 
-  };
+  }, []);
 
-  const toggleIndividual = (id: string, idx: number) => {
-    setIsBulkToggling(false);
+  const toggleIndividual = useCallback((e: React.MouseEvent, id: string, idx: number) => {
     setVisibleDefs(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -114,18 +210,18 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
         setSelectedIndex(idx);
         wakeSelection();
     }
-  };
+  }, [isSelectionModeEnabled, wakeSelection]);
 
-  const handleLevelClick = (e: React.MouseEvent, id: string, level: number, idx: number) => {
+  const handleLevelClick = useCallback((e: React.MouseEvent, id: string, level: number, idx: number) => {
       e.stopPropagation();
       onUpdateLevel(id, level);
       if (isSelectionModeEnabled) {
         setSelectedIndex(idx);
         wakeSelection();
       }
-  };
+  }, [onUpdateLevel, isSelectionModeEnabled, wakeSelection]);
   
-  const handleWordCycle = (item: VocabularyItem, idx: number) => {
+  const handleWordCycle = useCallback((e: React.MouseEvent, item: VocabularyItem, idx: number) => {
       const nextLevel = item.level >= 3 ? 0 : item.level + 1;
       onUpdateLevel(item.id, nextLevel);
       
@@ -133,18 +229,18 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
         setSelectedIndex(idx);
         wakeSelection();
       }
-  };
+  }, [onUpdateLevel, isSelectionModeEnabled, wakeSelection]);
 
-  const handleLightSwipeStart = (e: React.TouchEvent, idx: number) => {
+  const handleLightSwipeStart = useCallback((e: React.TouchEvent, idx: number) => {
       lightSwipeStartX.current = e.touches[0].clientX;
       lastLightUpdateX.current = e.touches[0].clientX;
       if (isSelectionModeEnabled) {
           setSelectedIndex(idx);
           wakeSelection();
       }
-  };
+  }, [isSelectionModeEnabled, wakeSelection]);
 
-  const handleLightSwipeMove = (e: React.TouchEvent, item: VocabularyItem) => {
+  const handleLightSwipeMove = useCallback((e: React.TouchEvent, item: VocabularyItem) => {
       if (lastLightUpdateX.current === null) return;
       const currentX = e.touches[0].clientX;
       const diff = currentX - lastLightUpdateX.current;
@@ -165,23 +261,23 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
               }
           }
       }
-  };
+  }, [onUpdateLevel]);
 
-  const handleLightSwipeEnd = () => {
+  const handleLightSwipeEnd = useCallback(() => {
       lightSwipeStartX.current = null;
       lastLightUpdateX.current = null;
-  };
+  }, []);
 
   const handleContainerClick = () => {
       setShowSelection(false);
   };
 
-  const handleRowClick = (e: React.MouseEvent, index: number) => {
+  const handleRowClick = useCallback((e: React.MouseEvent, index: number) => {
       e.stopPropagation(); 
       if (!isSelectionModeEnabled) return;
       setSelectedIndex(index);
       wakeSelection();
-  };
+  }, [isSelectionModeEnabled, wakeSelection]);
 
   const toggleSelectionMode = () => {
       const newState = !isSelectionModeEnabled;
@@ -220,7 +316,14 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
            e.preventDefault();
            wakeSelection();
            const item = filteredData[selectedIndex];
-           if (item) toggleIndividual(item.id, selectedIndex);
+           if (item) {
+               setVisibleDefs(prev => {
+                   const next = new Set(prev);
+                   if (next.has(item.id)) next.delete(item.id);
+                   else next.add(item.id);
+                   return next;
+               });
+           }
        } else if (e.code === 'ArrowRight') {
            e.preventDefault();
            wakeSelection();
@@ -374,74 +477,28 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             </div>
 
             {/* Rows */}
-            {filteredData.map((item, idx) => {
-                const isDefVisible = showAllDefs || visibleDefs.has(item.id);
-                const isSelected = isSelectionModeEnabled && showSelection && idx === selectedIndex;
-                const sourceName = showSource && item.sourceId ? onGetSourceName(item.sourceId) : null;
-
-                return (
-                    <div 
+            {filteredData.length === 0 ? (
+                <div className="text-center py-10 text-monkey-sub">No words found in selected levels.</div>
+            ) : (
+                filteredData.map((item, idx) => (
+                    <WordRow
                         key={item.id}
-                        id={`word-row-${idx}`}
-                        onClick={(e) => handleRowClick(e, idx)} 
-                        className={`flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}`}
-                    >
-                        {/* Traffic Lights Column */}
-                        <div 
-                            className="flex justify-between items-center mb-2 md:mb-0 md:justify-center gap-1 touch-none cursor-ew-resize md:py-3"
-                            onTouchStart={(e) => handleLightSwipeStart(e, idx)}
-                            onTouchMove={(e) => handleLightSwipeMove(e, item)}
-                            onTouchEnd={handleLightSwipeEnd}
-                        >
-                            <span className="text-xs text-monkey-sub font-bold uppercase md:hidden">Level</span>
-                             <div className="flex gap-1">
-                                {[1, 2, 3].map(l => (
-                                    <div 
-                                        key={l}
-                                        onClick={(e) => handleLevelClick(e, item.id, item.level === l ? l - 1 : l, idx)}
-                                        className={`w-3 h-3 md:w-2 md:h-2 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
-                                    ></div>
-                                ))}
-                             </div>
-                        </div>
-
-                        {/* Word Column */}
-                        <div 
-                            className="text-xl md:text-lg font-bold text-monkey-text select-text hover:text-white transition-colors mb-2 md:mb-0 md:py-3 flex flex-wrap items-center gap-2"
-                            onClick={(e) => { e.stopPropagation(); handleWordCycle(item, idx); }}
-                        >
-                            {item.word}
-                            {sourceName && (
-                                <span className="text-[10px] bg-monkey-sub/20 text-monkey-sub px-1.5 py-0.5 rounded font-normal align-middle truncate max-w-[120px]">
-                                    {sourceName}
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Definition Column */}
-                        <div 
-                            className="cursor-pointer relative group leading-relaxed md:py-3 min-h-[1.5em]"
-                            onClick={(e) => { e.stopPropagation(); toggleIndividual(item.id, idx); }}
-                        >
-                            <span 
-                              className={`
-                                rounded px-1
-                                ${isDefVisible 
-                                  ? 'bg-transparent text-gray-200' 
-                                  : 'bg-[#3f4145] text-transparent select-none hover:bg-[#4a4c50] box-decoration-clone' 
-                                }
-                              `}
-                              style={{
-                                  transition: isBulkToggling ? 'background-color 0.3s ease, color 0.3s ease' : 'none',
-                                  transitionDelay: isBulkToggling ? `${idx * 15}ms` : '0ms'
-                              }}
-                            >
-                                {item.definition}
-                            </span>
-                        </div>
-                    </div>
-                );
-            })}
+                        item={item}
+                        idx={idx}
+                        isDefVisible={showAllDefs || visibleDefs.has(item.id)}
+                        isSelected={isSelectionModeEnabled && showSelection && idx === selectedIndex}
+                        showSource={showSource}
+                        sourceName={showSource && item.sourceId ? onGetSourceName(item.sourceId) : undefined}
+                        onRowClick={handleRowClick}
+                        onLevelClick={handleLevelClick}
+                        onWordCycle={handleWordCycle}
+                        onToggleDef={toggleIndividual}
+                        onLightSwipeStart={handleLightSwipeStart}
+                        onLightSwipeMove={handleLightSwipeMove}
+                        onLightSwipeEnd={handleLightSwipeEnd}
+                    />
+                ))
+            )}
         </div>
       </div>
       

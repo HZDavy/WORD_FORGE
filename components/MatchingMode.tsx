@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { VocabularyItem } from '../types';
 import { Shuffle, RotateCcw } from 'lucide-react';
 
@@ -24,26 +24,52 @@ interface Bubble {
 const ITEMS_PER_ROUND = 6; 
 
 export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, onShuffle, onRestore, onSaveProgress }) => {
+  // Filter Logic
+  const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
+  
+  const filteredData = useMemo(() => {
+    return data.filter(item => activeLevels.has(item.level));
+  }, [data, activeLevels]);
+
   const [round, setRound] = useState(initialRound);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isWait, setIsWait] = useState(false);
 
-  const totalRounds = Math.ceil(data.length / ITEMS_PER_ROUND);
+  const totalRounds = Math.ceil(filteredData.length / ITEMS_PER_ROUND);
 
   useEffect(() => {
     onSaveProgress(round);
   }, [round, onSaveProgress]);
+
+  // Adjust round if filtered data shrinks
+  useEffect(() => {
+      if (round >= totalRounds && totalRounds > 0) {
+          setRound(0);
+      }
+  }, [totalRounds, round]);
 
   const restart = () => {
       setRound(0);
       setSelectedId(null);
   };
 
+  const toggleFilter = (level: number) => {
+      setActiveLevels(prev => {
+          const next = new Set(prev);
+          if (next.has(level)) next.delete(level);
+          else next.add(level);
+          return next.size === 0 ? prev : next;
+      });
+      restart();
+  };
+
   useEffect(() => {
+    if (filteredData.length === 0) return;
+
     const start = round * ITEMS_PER_ROUND;
     const end = start + ITEMS_PER_ROUND;
-    const slice = data.slice(start, end);
+    const slice = filteredData.slice(start, end);
 
     if (slice.length === 0) return;
 
@@ -74,7 +100,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
     const combined = [...wordBubbles, ...defBubbles].sort(() => Math.random() - 0.5);
     setBubbles(combined);
     setSelectedId(null);
-  }, [round, data]);
+  }, [round, filteredData]);
 
   const handleSelect = useCallback((uid: string) => {
     if (isWait) return;
@@ -142,7 +168,23 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   }, [onExit]);
 
 
-  if (round >= totalRounds) {
+  if (filteredData.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center animate-game-pop-in">
+              <h2 className="text-2xl font-bold text-monkey-sub mb-4">No cards in selected levels</h2>
+              <div className="flex gap-2 justify-center">
+                  {[0,1,2,3].map(l => (
+                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#3e4044] text-gray-200 border-monkey-sub/50' : 'bg-transparent text-monkey-sub border-monkey-sub/20'}`}>
+                          {l}
+                      </button>
+                  ))}
+              </div>
+              <button onClick={onExit} className="mt-8 text-monkey-sub underline">Back</button>
+          </div>
+      );
+  }
+
+  if (round >= totalRounds && totalRounds > 0) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in-up">
               <h2 className="text-4xl font-bold text-monkey-main mb-4">全通关!</h2>
@@ -155,9 +197,30 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center h-full pt-6 animate-game-pop-in">
       <div className="flex justify-between w-full mb-6 border-b border-monkey-sub/20 pb-2 px-4 items-center">
-        <div>
-            <span className="text-monkey-main font-bold font-mono text-lg">Round {round + 1} / {totalRounds}</span>
-            <span className="text-monkey-sub text-sm font-mono ml-4 hidden sm:inline">Select matching pairs</span>
+        <div className="flex flex-col gap-1">
+            <div>
+                <span className="text-monkey-main font-bold font-mono text-lg">Round {round + 1} / {totalRounds}</span>
+                <span className="text-monkey-sub text-sm font-mono ml-4 hidden sm:inline">Select matching pairs</span>
+            </div>
+            {/* Filters */}
+            <div className="flex gap-1 mt-1">
+                {[0, 1, 2, 3].map(level => {
+                    const isActive = activeLevels.has(level);
+                    return (
+                        <button 
+                            key={level} 
+                            onClick={() => toggleFilter(level)}
+                            className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-all ${
+                                isActive 
+                                    ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50' 
+                                    : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
+                            }`}
+                        >
+                            {level}
+                        </button>
+                    )
+                })}
+            </div>
         </div>
         <div className="flex gap-2">
             <button onClick={() => { restart(); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>

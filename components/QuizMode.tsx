@@ -14,6 +14,13 @@ interface Props {
 }
 
 export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffle, onRestore, onSaveProgress, onGetSourceName }) => {
+  // Filter Logic
+  const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
+  
+  const quizItems = useMemo(() => {
+    return data.filter(item => activeLevels.has(item.level));
+  }, [data, activeLevels]);
+
   const [currentIndex, setCurrentIndex] = useState(initialState?.currentIndex || 0);
   const [score, setScore] = useState(initialState?.score || 0);
   const [answeredState, setAnsweredState] = useState<{ [key: number]: number | null }>(initialState?.answeredState || {}); 
@@ -23,10 +30,16 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
-  const quizItems = useMemo(() => data, [data]); 
-  
   const currentItem = quizItems[currentIndex];
   const selectedOption = answeredState[currentIndex] ?? null;
+
+  // Reset index if it goes out of bounds when filtering changes
+  useEffect(() => {
+      if (currentIndex >= quizItems.length && quizItems.length > 0) {
+          setCurrentIndex(0);
+          setAnsweredState({});
+      }
+  }, [quizItems.length, currentIndex]);
 
   // Save progress on change
   useEffect(() => {
@@ -36,6 +49,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
   const options = useMemo(() => {
     if (!currentItem) return [];
     
+    // Pick wrong options from the FULL dataset (data), not just filtered set, to increase difficulty/variety
     const wrongOptions = data
       .filter(item => item.id !== currentItem.id)
       .sort(() => 0.5 - Math.random()) 
@@ -43,7 +57,19 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
     
     const all = [currentItem, ...wrongOptions].sort(() => 0.5 - Math.random());
     return all;
-  }, [currentItem, data, currentIndex]);
+  }, [currentItem, data]);
+
+  const toggleFilter = (level: number) => {
+      setActiveLevels(prev => {
+          const next = new Set(prev);
+          if (next.has(level)) next.delete(level);
+          else next.add(level);
+          return next.size === 0 ? prev : next;
+      });
+      setCurrentIndex(0);
+      setAnsweredState({});
+      setScore(0);
+  };
 
   const handleAnswer = useCallback((optionIndex: number) => {
     if (selectedOption !== null || isAnimating) return; 
@@ -122,6 +148,22 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
     touchEndX.current = null;
   };
 
+  if (quizItems.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center animate-game-pop-in">
+              <h2 className="text-2xl font-bold text-monkey-sub mb-4">No cards in selected levels</h2>
+              <div className="flex gap-2 justify-center">
+                  {[0,1,2,3].map(l => (
+                      <button key={l} onClick={() => toggleFilter(l)} className={`w-8 h-8 rounded border text-xs ${activeLevels.has(l) ? 'bg-[#3e4044] text-gray-200 border-monkey-sub/50' : 'bg-transparent text-monkey-sub border-monkey-sub/20'}`}>
+                          {l}
+                      </button>
+                  ))}
+              </div>
+              <button onClick={onExit} className="mt-8 text-monkey-sub underline">Back</button>
+          </div>
+      );
+  }
+
   if (!currentItem) return null;
 
   return (
@@ -134,16 +176,39 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
       
       <div className="w-full flex justify-between items-end border-b border-monkey-sub/20 pb-2 md:pb-4 mb-4 md:mb-8 select-none relative">
         {/* Controls */}
-        <div className="absolute -top-8 right-0 flex gap-2">
-             <button
-                onClick={() => setShowSource(!showSource)}
-                className={`p-2 transition-colors ${showSource ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
-                title="Toggle Source File"
-             >
-                <FileBadge size={16} />
-             </button>
-             <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16} /></button>
-             <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={16} /></button>
+        <div className="absolute -top-10 md:-top-12 left-0 right-0 flex justify-between items-center">
+            {/* Filters */}
+            <div className="flex gap-1">
+                {[0, 1, 2, 3].map(level => {
+                    const isActive = activeLevels.has(level);
+                    return (
+                        <button 
+                            key={level} 
+                            onClick={() => toggleFilter(level)}
+                            className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold transition-all ${
+                                isActive 
+                                    ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50' 
+                                    : 'bg-transparent text-monkey-sub hover:text-gray-300 border border-monkey-sub/20'
+                            }`}
+                        >
+                            {level}
+                        </button>
+                    )
+                })}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+                 <button
+                    onClick={() => setShowSource(!showSource)}
+                    className={`p-2 transition-colors ${showSource ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
+                    title="Toggle Source File"
+                 >
+                    <FileBadge size={16} />
+                 </button>
+                 <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16} /></button>
+                 <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={16} /></button>
+            </div>
         </div>
 
         <div>
