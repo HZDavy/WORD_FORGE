@@ -50,6 +50,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   
   // Round List Modal State
   const [showRoundList, setShowRoundList] = useState(false);
+  const [listSelectedIndex, setListSelectedIndex] = useState(0);
   
   // Gesture State for Traffic Lights in Inspector/List
   const lightStartX = useRef<number | null>(null);
@@ -110,6 +111,23 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
           setSelectedId(null);
       }
   }, [round]);
+
+  // Scroll selected item into view in list mode
+  useEffect(() => {
+      if (showRoundList) {
+          const el = document.getElementById(`round-list-item-${listSelectedIndex}`);
+          if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+      }
+  }, [listSelectedIndex, showRoundList]);
+
+  // Reset selection when list opens
+  useEffect(() => {
+      if (showRoundList) {
+          setListSelectedIndex(0);
+      }
+  }, [showRoundList]);
 
   // Only regenerate bubbles when ROUND, FILTER, or RESET VERSION changes. 
   useEffect(() => {
@@ -290,7 +308,24 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
                  e.preventDefault();
                  if (inspectedItem.level > 0) onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
               }
-          } else if (!showRoundList) {
+          } else if (showRoundList) {
+               // LIST MODE KEYBOARD CONTROLS
+              if (e.code === 'ArrowDown') {
+                  e.preventDefault();
+                  setListSelectedIndex(prev => Math.min(prev + 1, currentRoundItems.length - 1));
+              } else if (e.code === 'ArrowUp') {
+                  e.preventDefault();
+                  setListSelectedIndex(prev => Math.max(prev - 1, 0));
+              } else if (e.code === 'ArrowLeft') {
+                  e.preventDefault();
+                  const item = currentRoundItems[listSelectedIndex];
+                  if (item && item.level > 0) onUpdateLevel(item.id, item.level - 1);
+              } else if (e.code === 'ArrowRight') {
+                  e.preventDefault();
+                  const item = currentRoundItems[listSelectedIndex];
+                  if (item && item.level < 3) onUpdateLevel(item.id, item.level + 1);
+              }
+          } else {
               // Navigation controls when not inspecting and not in list mode
               if (e.code === 'ArrowLeft') {
                   handlePrev();
@@ -301,7 +336,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       }
       window.addEventListener('keydown', handleKey);
       return () => window.removeEventListener('keydown', handleKey);
-  }, [onExit, inspectedId, inspectedItem, onUpdateLevel, handlePrev, handleNext, showRoundList]);
+  }, [onExit, inspectedId, inspectedItem, onUpdateLevel, handlePrev, handleNext, showRoundList, currentRoundItems, listSelectedIndex]);
 
 
   if (filteredData.length === 0) {
@@ -532,11 +567,16 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
 
                   {/* Scrollable List */}
                   <div className="overflow-y-auto p-4 flex flex-col gap-2 custom-scrollbar">
-                      {currentRoundItems.map(item => (
-                          <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-[#323437] border border-monkey-sub/10 hover:border-monkey-sub/30 transition-colors">
+                      {currentRoundItems.map((item, idx) => (
+                          <div 
+                            key={item.id} 
+                            id={`round-list-item-${idx}`}
+                            onClick={() => setListSelectedIndex(idx)}
+                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${idx === listSelectedIndex ? 'bg-monkey-main/10 border-monkey-main ring-1 ring-monkey-main/20' : 'bg-[#323437] border-monkey-sub/10 hover:border-monkey-sub/30'}`}
+                          >
                               {/* Word Info */}
                               <div className="flex-1 min-w-0">
-                                  <div className="text-lg font-bold text-monkey-main truncate">{item.word}</div>
+                                  <div className={`text-lg font-bold truncate ${idx === listSelectedIndex ? 'text-monkey-main' : 'text-monkey-text'}`}>{item.word}</div>
                                   <div className="text-sm text-monkey-sub leading-snug">{item.definition}</div>
                               </div>
 
@@ -557,6 +597,12 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
                               </div>
                           </div>
                       ))}
+                  </div>
+                  
+                  <div className="p-3 border-t border-monkey-sub/10 bg-[#2c2e31] rounded-b-xl text-[10px] text-monkey-sub/40 font-mono flex justify-between px-4">
+                      <span>↑/↓: Nav</span>
+                      <span>←/→: Level</span>
+                      <span>Space: Close</span>
                   </div>
               </div>
           </div>,

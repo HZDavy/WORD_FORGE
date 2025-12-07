@@ -393,7 +393,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
         })}
       </div>
 
-      <div className="w-full flex justify-between mt-auto pb-6 z-10">
+      <div className="w-full flex justify-between mt-auto mb-4 z-10">
           <button 
             onClick={handlePrev} 
             disabled={currentIndex === 0}
@@ -417,6 +417,15 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
                 <span className="hidden md:inline">Next</span> <ArrowRight size={20} />
             </button>
           )}
+      </div>
+
+      {/* Keyboard Legend */}
+      <div className="mb-4 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex">
+          <span>1-4: Select</span>
+          <span>Space: Grade</span>
+          <span>↑/↓: Level</span>
+          <span>←/→: Nav</span>
+          <span>Esc: Exit</span>
       </div>
     </div>
   );
