@@ -232,7 +232,7 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   // -- Keyboard Controls --
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'ArrowDown') {
+      if (e.code === 'Space') {
         e.preventDefault(); 
         toggleReveal();
       } else if (e.code === 'ArrowRight') {
@@ -241,9 +241,13 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
         if (index > 0) handlePrevData();
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
-        if (currentCard) {
-            const nextLevel = currentCard.level >= 3 ? 0 : currentCard.level + 1;
-            onUpdateLevel(currentCard.id, nextLevel);
+        if (currentCard && currentCard.level < 3) {
+            onUpdateLevel(currentCard.id, currentCard.level + 1);
+        }
+      } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        if (currentCard && currentCard.level > 0) {
+            onUpdateLevel(currentCard.id, currentCard.level - 1);
         }
       } else if (e.code === 'Escape') {
         onExit();
@@ -512,8 +516,8 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
 
       {/* Keyboard Legend */}
       <div className="mt-4 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex">
-          <span>Space/↓: Flip</span>
-          <span>↑: Mark Level</span>
+          <span>Space: Flip</span>
+          <span>↑/↓: Level</span>
           <span>←/→: Nav</span>
           <span>Esc: Exit</span>
       </div>
