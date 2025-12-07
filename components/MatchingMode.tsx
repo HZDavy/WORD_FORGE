@@ -83,7 +83,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
     }));
 
     const defBubbles: Bubble[] = slice.map(item => {
-      let defText = item.definition.replace(/;/g, ' '); 
+      let defText = item.definition; 
       if (defText.length > 55) {
           defText = defText.substring(0, 52) + '...';
       }

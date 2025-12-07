@@ -770,7 +770,7 @@ const App = () => {
                                 
                                 {/* Search Results Dropdown - Absolute to overlay content */}
                                 {searchQuery && (
-                                    <div className="absolute top-full left-0 w-full mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-[60vh] overflow-y-auto custom-scrollbar z-50 overscroll-contain">
+                                    <div className="absolute top-full left-0 w-full mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-[45vh] overflow-y-auto custom-scrollbar z-50 overscroll-contain">
                                         {searchResults.length > 0 ? (
                                             searchResults.map((item, idx) => (
                                                 <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
