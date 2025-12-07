@@ -8,7 +8,7 @@ import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
 import { MatrixRain } from './components/MatrixRain';
 import { TimerWidget } from './components/TimerWidget';
-import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser, GripVertical } from 'lucide-react';
+import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronUp, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser, ArrowDownUp } from 'lucide-react';
 
 const App = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
@@ -25,6 +25,7 @@ const App = () => {
   const [isSourceManagerOpen, setIsSourceManagerOpen] = useState(false);
   const [isSourceManagerClosing, setIsSourceManagerClosing] = useState(false);
   const [isAnimCentered, setIsAnimCentered] = useState(true); // Control vertical position
+  const [isSortMode, setIsSortMode] = useState(false); // New: Sort mode toggle
   
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -38,9 +39,6 @@ const App = () => {
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isClosingDeleteModal, setIsClosingDeleteModal] = useState(false);
-  
-  // Drag and Drop State for Sources
-  const [draggedSourceId, setDraggedSourceId] = useState<string | null>(null);
   
   // Gesture State for Global Edge Swipe
   const touchStartX = useRef<number | null>(null);
@@ -295,6 +293,7 @@ const App = () => {
               setIsSourceManagerOpen(false);
               setIsSourceManagerClosing(false);
               setIsAnimCentered(true); // Return to center
+              setIsSortMode(false); // Reset sort mode on close
           }, 300); // 300ms matches animation duration
       } else {
           // Open Sequence: 1. Move Up, 2. Expand Grid
@@ -352,34 +351,26 @@ const App = () => {
       return sources.find(s => s.id === id)?.name;
   }, [sources]);
   
-  // Drag and Drop Logic
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedSourceId(id);
-    e.dataTransfer.effectAllowed = "move";
-    // Optional: could set a drag image here if needed, but default is usually fine
+  // Sorting Logic (Up/Down)
+  const moveSourceUp = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    if (index <= 0) return;
+    setSources(prev => {
+        const newSources = [...prev];
+        [newSources[index - 1], newSources[index]] = [newSources[index], newSources[index - 1]];
+        return newSources;
+    });
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // Necessary to allow dropping
+  const moveSourceDown = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation();
+    if (index >= sources.length - 1) return;
+    setSources(prev => {
+        const newSources = [...prev];
+        [newSources[index], newSources[index + 1]] = [newSources[index + 1], newSources[index]];
+        return newSources;
+    });
   };
-
-  const handleDrop = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (!draggedSourceId || draggedSourceId === targetId) return;
-
-    const fromIndex = sources.findIndex(s => s.id === draggedSourceId);
-    const toIndex = sources.findIndex(s => s.id === targetId);
-
-    if (fromIndex === -1 || toIndex === -1) return;
-
-    const newSources = [...sources];
-    const [movedItem] = newSources.splice(fromIndex, 1);
-    newSources.splice(toIndex, 0, movedItem);
-
-    setSources(newSources);
-    setDraggedSourceId(null);
-  };
-
 
   const resetGame = useCallback(() => {
     setMode(GameMode.MENU);
@@ -548,7 +539,7 @@ const App = () => {
             <div className={`transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] min-h-0 ${isAnimCentered ? 'flex-grow' : 'flex-grow-0'}`} />
 
             {/* Content Container */}
-            <div className={`flex flex-col w-full transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isAnimCentered ? 'shrink min-h-0' : 'flex-grow min-h-0'}`}>
+            <div className={`flex flex-col w-full transition-[flex-grow] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isAnimCentered ? 'shrink min-h-0' : 'flex-grow min-h-0'}`}>
                 
                 {/* Header Area */}
                 <div className={`w-full shrink-0 z-40 px-4 md:px-0 transition-[margin] duration-300 ${isSourceManagerOpen || isSourceManagerClosing ? 'mb-0' : 'mb-4'}`}>
@@ -618,26 +609,31 @@ const App = () => {
                         <div className={`grid mx-0 origin-top overflow-hidden ${isSourceManagerClosing ? 'animate-collapse-grid' : 'animate-expand-grid'}`}>
                             <div className="min-h-0">
                                 {/* VISUAL WRAPPER */}
-                                <div className={`bg-[#2c2e31] rounded-b-xl border-x border-b border-monkey-sub/20 ${isSourceManagerClosing ? 'animate-slide-up-hide' : 'animate-slide-down-reveal'}`}>
-                                    <div className="flex items-center gap-2 mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#2c2e31]">
+                                <div className={`bg-[#2c2e31] rounded-b-xl border-x border-b border-monkey-sub/20 overflow-hidden ${isSourceManagerClosing ? 'animate-slide-up-hide' : 'animate-slide-down-reveal'}`}>
+                                    <div className="flex items-center justify-between mb-1 px-4 pt-4 pb-2 border-b border-monkey-sub/10 bg-[#2c2e31]">
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                            onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
+                                            className="text-monkey-sub hover:text-monkey-main transition-colors"
+                                            title={allSourcesEnabled ? "Deselect All" : "Select All"}
+                                            >
+                                                {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                            </button>
+                                            <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
+                                        </div>
                                         <button 
-                                        onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
-                                        className="text-monkey-sub hover:text-monkey-main transition-colors"
-                                        title={allSourcesEnabled ? "Deselect All" : "Select All"}
+                                            onClick={() => setIsSortMode(!isSortMode)}
+                                            className={`p-1.5 rounded transition-all ${isSortMode ? 'bg-monkey-main text-monkey-bg' : 'text-monkey-sub hover:bg-monkey-sub/10'}`}
+                                            title="Toggle Sort Mode"
                                         >
-                                            {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                            <ArrowDownUp size={16} />
                                         </button>
-                                        <span className="text-xs text-monkey-sub uppercase tracking-wider">Source Files</span>
                                     </div>
                                     <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
-                                        {sources.map(source => (
+                                        {sources.map((source, index) => (
                                             <div 
                                                 key={source.id} 
-                                                draggable
-                                                onDragStart={(e) => handleDragStart(e, source.id)}
-                                                onDragOver={handleDragOver}
-                                                onDrop={(e) => handleDrop(e, source.id)}
-                                                className={`flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-all group/item ${draggedSourceId === source.id ? 'opacity-40 bg-[#323437]' : ''}`}
+                                                className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-all group/item select-none"
                                             >
                                                 {editingSourceId === source.id ? (
                                                     <div className="flex items-center gap-2 flex-1 mr-2">
@@ -669,20 +665,39 @@ const App = () => {
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                    {/* Drag Handle */}
-                                                    <div className="cursor-grab text-monkey-sub/30 hover:text-monkey-sub active:cursor-grabbing">
-                                                        <GripVertical size={14} />
+                                                <div className="flex items-center flex-1 min-w-0">
+                                                    {/* Animated Sorting Controls */}
+                                                    <div className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex-shrink-0 ${isSortMode ? 'max-w-[4.5rem] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}>
+                                                        <button 
+                                                            onClick={(e) => moveSourceUp(e, index)}
+                                                            disabled={index === 0 || !isSortMode}
+                                                            className="p-2 bg-monkey-sub/10 hover:bg-monkey-main hover:text-monkey-bg rounded text-monkey-sub disabled:opacity-20 transition-colors"
+                                                            title="Move Up"
+                                                        >
+                                                            <ChevronUp size={16} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => moveSourceDown(e, index)}
+                                                            disabled={index === sources.length - 1 || !isSortMode}
+                                                            className="p-2 bg-monkey-sub/10 hover:bg-monkey-main hover:text-monkey-bg rounded text-monkey-sub disabled:opacity-20 transition-colors"
+                                                            title="Move Down"
+                                                        >
+                                                            <ChevronDown size={16} />
+                                                        </button>
                                                     </div>
                                                     
-                                                    <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
-                                                        {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
-                                                    </button>
-                                                    <FileText size={14} className="text-monkey-sub shrink-0" />
+                                                    {/* Selection Controls - Hide in Sort Mode */}
+                                                    <div className={`flex items-center gap-2 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex-shrink-0 ${!isSortMode ? 'max-w-[3rem] opacity-100 mr-2' : 'max-w-0 opacity-0'}`}>
+                                                        <button onClick={() => toggleSource(source.id)} className="text-monkey-text hover:text-monkey-main">
+                                                            {source.enabled ? <CheckSquare size={16} /> : <Square size={16} />}
+                                                        </button>
+                                                        <FileText size={14} className="text-monkey-sub shrink-0" />
+                                                    </div>
+
                                                     <span className={`truncate ${!source.enabled && 'text-monkey-sub line-through opacity-50'}`}>{source.name}</span>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); setEditingSourceId(source.id); setEditName(source.name); }}
-                                                        className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1"
+                                                        className="opacity-0 group-hover/item:opacity-100 text-monkey-sub hover:text-monkey-text transition-opacity p-1 ml-2"
                                                         title="Rename"
                                                     >
                                                         <Pencil size={12} />
