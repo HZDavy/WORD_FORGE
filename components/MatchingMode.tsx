@@ -40,6 +40,9 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   
   // Track completed rounds in this session to show stamps
   const [completedRounds, setCompletedRounds] = useState<Set<number>>(new Set());
+
+  // Force refresh for shuffle/restore
+  const [resetVersion, setResetVersion] = useState(0);
   
   // Inspection State - Store ID instead of Object to allow reactive updates
   const [inspectedId, setInspectedId] = useState<string | null>(null);
@@ -98,7 +101,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
       }
   }, [round]);
 
-  // Only regenerate bubbles when ROUND or FILTER changes. 
+  // Only regenerate bubbles when ROUND, FILTER, or RESET VERSION changes. 
   useEffect(() => {
     if (filteredData.length === 0) return;
 
@@ -135,7 +138,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
     const combined = [...wordBubbles, ...defBubbles].sort(() => Math.random() - 0.5);
     setBubbles(combined);
     setSelectedId(null);
-  }, [round, activeLevels]); 
+  }, [round, activeLevels, resetVersion]); 
 
   const handleSelect = useCallback((uid: string) => {
     if (isWait || inspectedId) return;
@@ -343,8 +346,8 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
             </div>
         </div>
         <div className="flex gap-2">
-            <button onClick={() => { restart(); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
-            <button onClick={() => { restart(); onRestore(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
+            <button onClick={() => { restart(); onShuffle(); setResetVersion(v => v + 1); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
+            <button onClick={() => { restart(); onRestore(); setResetVersion(v => v + 1); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
         </div>
       </div>
 
