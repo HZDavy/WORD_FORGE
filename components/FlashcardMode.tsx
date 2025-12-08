@@ -7,17 +7,30 @@ import { ArrowLeft, ArrowRight, Shuffle, RotateCcw, Eye, EyeOff, FileBadge } fro
 interface Props {
   data: VocabularyItem[];
   initialIndex?: number;
+  initialActiveLevels?: number[];
   onExit: () => void;
   onUpdateLevel: (id: string, level: number) => void;
   onShuffle: () => void;
   onRestore: () => void;
-  onSaveProgress: (index: number) => void;
+  onSaveProgress: (index: number, activeLevels: number[]) => void;
   onGetSourceName: (id: string) => string | undefined;
 }
 
-export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit, onUpdateLevel, onShuffle, onRestore, onSaveProgress, onGetSourceName }) => {
-  // Filter Logic
-  const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
+export const FlashcardMode: React.FC<Props> = ({ 
+  data, 
+  initialIndex = 0, 
+  initialActiveLevels,
+  onExit, 
+  onUpdateLevel, 
+  onShuffle, 
+  onRestore, 
+  onSaveProgress, 
+  onGetSourceName 
+}) => {
+  // Filter Logic - Initialize from saved state or default to all
+  const [activeLevels, setActiveLevels] = useState<Set<number>>(() => {
+    return initialActiveLevels ? new Set(initialActiveLevels) : new Set([0, 1, 2, 3]);
+  });
   
   const filteredData = useMemo(() => {
     return data.filter(item => activeLevels.has(item.level));
@@ -46,10 +59,10 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   const currentCard = filteredData[index];
   const nextCard = filteredData[index + 1]; 
 
-  // Save progress whenever index changes
+  // Save progress whenever index or filter changes
   useEffect(() => {
-    onSaveProgress(index);
-  }, [index, onSaveProgress]);
+    onSaveProgress(index, Array.from(activeLevels));
+  }, [index, activeLevels, onSaveProgress]);
 
   // Adjust index if filtered data changes size
   useEffect(() => {

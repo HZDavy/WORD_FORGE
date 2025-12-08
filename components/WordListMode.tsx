@@ -51,8 +51,8 @@ const WordRow = React.memo(({
         if (!rowRef.current) return;
         const resizeObserver = new ResizeObserver((entries) => {
             for (let entry of entries) {
-                // Use borderBoxSize if available for better accuracy including padding/border
-                const height = entry.borderBoxSize?.[0]?.blockSize || entry.contentRect.height;
+                // Use Math.ceil to prevent sub-pixel stuttering loops
+                const height = Math.ceil(entry.borderBoxSize?.[0]?.blockSize || entry.contentRect.height);
                 setRowHeight(idx, height);
             }
         });
@@ -66,7 +66,7 @@ const WordRow = React.memo(({
           id={`word-row-${idx}`}
           onClick={(e) => onRowClick(e, idx)} 
           className={`
-            w-full box-border absolute top-0 left-0
+            w-full box-border relative
             flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer 
             ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20 z-10' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}
           `}
@@ -161,19 +161,37 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     return data.filter(item => activeLevels.has(item.level));
   }, [data, activeLevels]);
 
+  // Reactive Mobile State for Layout Calculations
+  const [isMobile, setIsMobile] = useState(false);
+
   // Virtualization State
   const parentRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(800);
   const rowHeights = useRef<{[key: number]: number}>({});
+  const prevIdsRef = useRef<string[]>([]);
   
   // Force update when heights change to re-calculate offsets
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
-      // Reset heights when data changes to prevent layout issues
-      rowHeights.current = {};
-  }, [filteredData]);
+    // Determine initial state and listen for resize
+    const checkMobile = () => {
+        const mobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+        setIsMobile(prev => {
+            if (prev !== mobile) {
+                // Clear height cache on layout change to prevent gaps
+                rowHeights.current = {}; 
+                return mobile;
+            }
+            return prev;
+        });
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
       if (!parentRef.current) return;
@@ -185,6 +203,32 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       resizeObserver.observe(parentRef.current);
       return () => resizeObserver.disconnect();
   }, []);
+
+  useEffect(() => {
+      // Smart Cache Clearing
+      // Only clear height cache if the list structure (items/order) changes.
+      // If it's just a property update (like level change), keep the cache to avoid jumps.
+      const currentIds = filteredData.map(item => item.id);
+      const prevIds = prevIdsRef.current;
+      
+      let structureChanged = false;
+      if (currentIds.length !== prevIds.length) {
+          structureChanged = true;
+      } else {
+          for (let i = 0; i < currentIds.length; i++) {
+              if (currentIds[i] !== prevIds[i]) {
+                  structureChanged = true;
+                  break;
+              }
+          }
+      }
+
+      if (structureChanged) {
+          rowHeights.current = {};
+      }
+      
+      prevIdsRef.current = currentIds;
+  }, [filteredData]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
       setScrollTop(e.currentTarget.scrollTop);
@@ -198,7 +242,6 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   }, []);
 
   // Calculate Virtual Items
-  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
   const gap = isMobile ? 16 : 0; // 16px gap on mobile (gap-4), 0 on desktop
   
   let currentOffset = 0;
@@ -414,25 +457,20 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     };
   }, [onExit, filteredData, selectedIndex, onUpdateLevel, showResetConfirm, toggleAll]);
 
-  // Scroll current item into view if not visible (simplified auto-scroll)
+  // Scroll current item into view if not visible
   useEffect(() => {
       if (filteredData.length > 0 && usingKeyboard && parentRef.current) {
-         // Logic to auto-scroll virtual list is complex, for now we rely on user scrolling or minimal behavior
-         // Proper auto-scroll needs to know offsets. We have offsets in 'virtualItems' but only for rendered ones.
-         // We can calculate offset of selectedIndex roughly.
+         // Simple auto-scroll logic
          const heightEstimate = isMobile ? 150 : 60;
-         const estimatedTop = selectedIndex * heightEstimate; // Rough fallback
-         const measuredTop = rowHeights.current[selectedIndex] !== undefined 
-            ? Object.entries(rowHeights.current)
-                .filter(([k]) => parseInt(k) < selectedIndex)
-                .reduce((acc, [, h]) => acc + h + gap, 0)
-            : estimatedTop;
+         const estimatedTop = selectedIndex * (heightEstimate + gap); 
          
          const parent = parentRef.current;
-         if (measuredTop < parent.scrollTop) {
-             parent.scrollTo({ top: measuredTop, behavior: 'smooth' });
-         } else if (measuredTop + heightEstimate > parent.scrollTop + parent.clientHeight) {
-             parent.scrollTo({ top: measuredTop - parent.clientHeight + heightEstimate + 50, behavior: 'smooth' });
+         // Note: Precise scrolling in virtualization is complex. 
+         // This is a "best effort" to keep selection somewhat in view.
+         if (estimatedTop < parent.scrollTop) {
+             parent.scrollTo({ top: estimatedTop, behavior: 'smooth' });
+         } else if (estimatedTop > parent.scrollTop + parent.clientHeight) {
+             parent.scrollTo({ top: estimatedTop - parent.clientHeight + 100, behavior: 'smooth' });
          }
       }
   }, [selectedIndex, filteredData, usingKeyboard, isMobile, gap]);

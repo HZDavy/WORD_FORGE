@@ -6,18 +6,29 @@ import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw, FileBa
 
 interface Props {
   data: VocabularyItem[];
-  initialState?: { currentIndex: number; score: number; answeredState: Record<number, number | null> };
+  initialState?: { currentIndex: number; score: number; answeredState: Record<number, number | null>; activeLevels?: number[] };
   onExit: () => void;
   onShuffle: () => void;
   onRestore: () => void;
-  onSaveProgress: (state: { currentIndex: number; score: number; answeredState: Record<number, number | null> }) => void;
+  onSaveProgress: (state: { currentIndex: number; score: number; answeredState: Record<number, number | null>; activeLevels: number[] }) => void;
   onGetSourceName: (id: string) => string | undefined;
   onUpdateLevel: (id: string, level: number) => void;
 }
 
-export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffle, onRestore, onSaveProgress, onGetSourceName, onUpdateLevel }) => {
-  // Filter Logic
-  const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
+export const QuizMode: React.FC<Props> = ({ 
+  data, 
+  initialState, 
+  onExit, 
+  onShuffle, 
+  onRestore, 
+  onSaveProgress, 
+  onGetSourceName, 
+  onUpdateLevel 
+}) => {
+  // Filter Logic - Initialize from saved state or default to all
+  const [activeLevels, setActiveLevels] = useState<Set<number>>(() => {
+    return initialState?.activeLevels ? new Set(initialState.activeLevels) : new Set([0, 1, 2, 3]);
+  });
   
   const quizItems = useMemo(() => {
     return data.filter(item => activeLevels.has(item.level));
@@ -56,8 +67,8 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
   // Save progress on change
   useEffect(() => {
-    onSaveProgress({ currentIndex, score, answeredState });
-  }, [currentIndex, score, answeredState, onSaveProgress]);
+    onSaveProgress({ currentIndex, score, answeredState, activeLevels: Array.from(activeLevels) });
+  }, [currentIndex, score, answeredState, activeLevels, onSaveProgress]);
 
   // Generate Stable Options only when currentItem ID changes
   useEffect(() => {

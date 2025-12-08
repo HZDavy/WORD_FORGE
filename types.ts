@@ -42,9 +42,9 @@ export interface GameState {
 }
 
 export interface GameProgress {
-  flashcard?: { index: number };
-  quiz?: { currentIndex: number; score: number; answeredState: Record<number, number | null> };
-  matching?: { round: number; bubbles?: Bubble[] };
+  flashcard?: { index: number; activeLevels?: number[] };
+  quiz?: { currentIndex: number; score: number; answeredState: Record<number, number | null>; activeLevels?: number[] };
+  matching?: { round: number; bubbles?: Bubble[]; activeLevels?: number[] };
 }
 
 export interface ForgeSaveData {

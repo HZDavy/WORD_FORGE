@@ -1,3 +1,5 @@
+
+
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
@@ -592,17 +594,17 @@ const App = () => {
   }, []);
 
   // -- Persistence Handlers --
-  const saveFlashcardProgress = useCallback((index: number) => {
-    setProgress(prev => ({ ...prev, flashcard: { index } }));
+  const saveFlashcardProgress = useCallback((index: number, activeLevels: number[]) => {
+    setProgress(prev => ({ ...prev, flashcard: { index, activeLevels } }));
   }, []);
 
-  const saveQuizProgress = useCallback((state: { currentIndex: number; score: number; answeredState: Record<number, number | null> }) => {
+  const saveQuizProgress = useCallback((state: { currentIndex: number; score: number; answeredState: Record<number, number | null>; activeLevels: number[] }) => {
     setProgress(prev => ({ ...prev, quiz: state }));
   }, []);
 
   // Updated to save bubbles state
-  const saveMatchingProgress = useCallback((round: number, bubbles: Bubble[]) => {
-    setProgress(prev => ({ ...prev, matching: { round, bubbles } }));
+  const saveMatchingProgress = useCallback((round: number, bubbles: Bubble[], activeLevels: number[]) => {
+    setProgress(prev => ({ ...prev, matching: { round, bubbles, activeLevels } }));
   }, []);
 
 
@@ -683,6 +685,7 @@ const App = () => {
         return <FlashcardMode 
                   data={activeVocab} 
                   initialIndex={progress.flashcard?.index}
+                  initialActiveLevels={progress.flashcard?.activeLevels}
                   onExit={resetGame} 
                   onUpdateLevel={handleLevelUpdate} 
                   onShuffle={handleShuffle} 
@@ -708,6 +711,7 @@ const App = () => {
                   data={activeVocab} 
                   initialRound={progress.matching?.round}
                   initialBubbles={progress.matching?.bubbles}
+                  initialActiveLevels={progress.matching?.activeLevels}
                   onExit={resetGame} 
                   onShuffle={handleShuffle} 
                   onRestore={handleRestore} 

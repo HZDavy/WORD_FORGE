@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem, Bubble } from '../types';
@@ -7,18 +9,31 @@ interface Props {
   data: VocabularyItem[];
   initialRound?: number;
   initialBubbles?: Bubble[];
+  initialActiveLevels?: number[];
   onExit: () => void;
   onShuffle: () => void;
   onRestore: () => void;
-  onSaveProgress: (round: number, bubbles: Bubble[]) => void;
+  onSaveProgress: (round: number, bubbles: Bubble[], activeLevels: number[]) => void;
   onUpdateLevel: (id: string, level: number) => void;
 }
 
 const ITEMS_PER_ROUND = 6; 
 
-export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialBubbles, onExit, onShuffle, onRestore, onSaveProgress, onUpdateLevel }) => {
-  // Filter Logic
-  const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
+export const MatchingMode: React.FC<Props> = ({ 
+  data, 
+  initialRound = 0, 
+  initialBubbles, 
+  initialActiveLevels,
+  onExit, 
+  onShuffle, 
+  onRestore, 
+  onSaveProgress, 
+  onUpdateLevel 
+}) => {
+  // Filter Logic - Initialize from saved state or default to all
+  const [activeLevels, setActiveLevels] = useState<Set<number>>(() => {
+    return initialActiveLevels ? new Set(initialActiveLevels) : new Set([0, 1, 2, 3]);
+  });
   
   const filteredData = useMemo(() => {
     return data.filter(item => activeLevels.has(item.level));
@@ -84,12 +99,12 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
       return filteredData.slice(start, end);
   }, [filteredData, round]);
 
-  // Persist Progress (Round + Bubble State)
+  // Persist Progress (Round + Bubble State + Filter State)
   useEffect(() => {
     if (bubbles.length > 0) {
-        onSaveProgress(round, bubbles);
+        onSaveProgress(round, bubbles, Array.from(activeLevels));
     }
-  }, [round, bubbles, onSaveProgress]);
+  }, [round, bubbles, activeLevels, onSaveProgress]);
 
   // Adjust round if filtered data shrinks
   useEffect(() => {
@@ -264,6 +279,9 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
     
     const clicked = bubbles.find(b => b.uid === uid);
     if (!clicked || clicked.matched) return;
+
+    // Remove automatic keyboard mode on click
+    // setUsingKeyboard(true);
 
     if (selectedId === uid) {
       setBubbles(prev => prev.map(b => b.uid === uid ? { ...b, status: 'default' } : b));
