@@ -1,8 +1,9 @@
 
+
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
-import { VocabularyItem, GameMode, GameProgress, ForgeSaveData, SourceFile } from './types';
+import { VocabularyItem, GameMode, GameProgress, ForgeSaveData, SourceFile, Bubble } from './types';
 import { FlashcardMode } from './components/FlashcardMode';
 import { QuizMode } from './components/QuizMode';
 import { MatchingMode } from './components/MatchingMode';
@@ -407,8 +408,9 @@ const App = () => {
     setProgress(prev => ({ ...prev, quiz: state }));
   }, []);
 
-  const saveMatchingProgress = useCallback((round: number) => {
-    setProgress(prev => ({ ...prev, matching: { round } }));
+  // Updated to save bubbles state
+  const saveMatchingProgress = useCallback((round: number, bubbles: Bubble[]) => {
+    setProgress(prev => ({ ...prev, matching: { round, bubbles } }));
   }, []);
 
 
@@ -519,6 +521,7 @@ const App = () => {
         return <MatchingMode 
                   data={activeVocab} 
                   initialRound={progress.matching?.round}
+                  initialBubbles={progress.matching?.bubbles}
                   onExit={resetGame} 
                   onShuffle={handleShuffle} 
                   onRestore={handleRestore} 

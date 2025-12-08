@@ -1,4 +1,5 @@
 
+
 export interface SourceFile {
   id: string;
   name: string;
@@ -18,6 +19,15 @@ export interface VocabularyItem {
   originalIndex: number; // To restore order
 }
 
+export interface Bubble {
+  id: string; 
+  uid: string; 
+  text: string;
+  type: 'word' | 'def';
+  matched: boolean;
+  status: 'default' | 'selected' | 'wrong' | 'success' | 'recovering';
+}
+
 export enum GameMode {
   MENU = 'MENU',
   FLASHCARD = 'FLASHCARD',
@@ -34,7 +44,7 @@ export interface GameState {
 export interface GameProgress {
   flashcard?: { index: number };
   quiz?: { currentIndex: number; score: number; answeredState: Record<number, number | null> };
-  matching?: { round: number };
+  matching?: { round: number; bubbles?: Bubble[] };
 }
 
 export interface ForgeSaveData {

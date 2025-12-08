@@ -86,13 +86,17 @@
                 'collapse-grid': 'collapseGrid 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 'slide-down-reveal': 'slideDownReveal 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 'slide-up-hide': 'slideUpHide 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                'bounce-restore': 'bounceRestore 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
               },
               keyframes: {
                 shake: {
-                  '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-                  '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-                  '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-                  '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                  '0%': { transform: 'scale(1.05)' },
+                  '15%': { transform: 'scale(1.10)' },
+                  '10%, 90%': { transform: 'translate3d(-1px, 0, 0) scale(1.05)' },
+                  '20%, 80%': { transform: 'translate3d(2px, 0, 0) scale(1.05)' },
+                  '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0) scale(1.05)' },
+                  '40%, 60%': { transform: 'translate3d(4px, 0, 0) scale(1.05)' },
+                  '100%': { transform: 'scale(1)' }
                 },
                 popIn: {
                   '0%': { opacity: '0', transform: 'scale(0.5)' },
@@ -107,9 +111,11 @@
                   '100%': { opacity: '1', transform: 'translateY(0)' }
                 },
                 mergeSuccess: {
-                  '0%': { transform: 'scale(1)', opacity: '1', backgroundColor: '#e2b714', color: '#323437', borderColor: '#e2b714' },
+                  '0%': { transform: 'scale(1.05)', opacity: '1', backgroundColor: '#e2b714', color: '#323437', borderColor: '#e2b714' },
+                  '20%': { transform: 'scale(1.10)' },
                   '50%': { transform: 'scale(1.15)' },
-                  '100%': { transform: 'scale(0)', opacity: '0' }
+                  /* Updated: Border color changed to monkey-sub (#646669) to blend with bg */
+                  '100%': { transform: 'scale(1)', opacity: '0.2', backgroundColor: '#2c2e31', color: '#d1d0c5', borderColor: '#646669' }
                 },
                 slideOutLeft: {
                   '0%': { transform: 'translateX(0)', opacity: '1' },
@@ -171,6 +177,11 @@
                 slideUpHide: {
                   '0%': { transform: 'translateY(0)', opacity: '1' },
                   '100%': { transform: 'translateY(-1rem)', opacity: '0' }
+                },
+                bounceRestore: {
+                  '0%': { transform: 'scale(0.85)', opacity: '1' },
+                  '80%': { transform: 'scale(1.05)' },
+                  '100%': { transform: 'scale(1)', opacity: '1' }
                 }
               }
             }
