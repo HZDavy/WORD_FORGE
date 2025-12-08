@@ -56,7 +56,14 @@ export const MatchingMode: React.FC<Props> = ({
   const [isRoundLoading, setIsRoundLoading] = useState(true);
 
   // Track completed rounds in this session to show stamps
-  const [completedRounds, setCompletedRounds] = useState<Set<number>>(new Set());
+  // Initialize based on current round so we don't lose history on reload
+  const [completedRounds, setCompletedRounds] = useState<Set<number>>(() => {
+      const s = new Set<number>();
+      for (let i = 0; i < initialRound; i++) {
+          s.add(i);
+      }
+      return s;
+  });
 
   // Force refresh for shuffle/restore
   const [resetVersion, setResetVersion] = useState(0);
@@ -113,6 +120,30 @@ export const MatchingMode: React.FC<Props> = ({
           setBubbles([]); // Force regeneration
       }
   }, [totalRounds, round]);
+
+  // Auto-advance logic: Watches for 100% completion
+  // This handles both live completion AND restoring a completed save file
+  useEffect(() => {
+      if (bubbles.length > 0 && bubbles.every(b => b.matched)) {
+           // Mark as passed locally for UI
+           setCompletedRounds(prev => {
+               const next = new Set(prev);
+               next.add(round);
+               return next;
+           });
+           
+           const timer = setTimeout(() => {
+               if (round < totalRounds - 1) {
+                   setRound(r => r + 1);
+                   setBubbles([]); // Force regen
+                   setCursorIndex(0);
+               } else {
+                   // End of all rounds
+               }
+           }, 1000);
+           return () => clearTimeout(timer);
+      }
+  }, [bubbles, round, totalRounds]);
 
   // Focus input when editing round
   useEffect(() => {
@@ -299,26 +330,14 @@ export const MatchingMode: React.FC<Props> = ({
     if (!first) return;
 
     if (first.id === clicked.id) {
+      // MATCH SUCCESS
       setBubbles(prev => prev.map(b => 
         (b.uid === first.uid || b.uid === clicked.uid) 
           ? { ...b, status: 'success', matched: true } 
           : b
       ));
       setSelectedId(null);
-
-      const remaining = bubbles.filter(b => !b.matched && b.id !== clicked.id).length;
-      if (remaining === 0) {
-        // Mark current round as complete
-        setCompletedRounds(prev => new Set(prev).add(round));
-
-        setTimeout(() => {
-          if (round < totalRounds - 1) {
-            setRound(r => r + 1);
-            setBubbles([]); // Clear to force regen
-            setCursorIndex(0);
-          }
-        }, 1000); 
-      }
+      // NOTE: Completion check moved to useEffect to support restoration from save
     } else {
       setIsWait(true);
       // Set to WRONG (triggers Shake)
@@ -339,7 +358,7 @@ export const MatchingMode: React.FC<Props> = ({
         setIsWait(false);
       }, 500); 
     }
-  }, [bubbles, selectedId, isWait, round, totalRounds, inspectedId, showRoundList]);
+  }, [bubbles, selectedId, isWait, inspectedId, showRoundList]);
 
   // --- Modal Control ---
   const handleCloseInspector = () => {
