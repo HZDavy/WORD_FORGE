@@ -18,6 +18,9 @@ const App = () => {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<GameProgress>({});
   
+  // Data Versioning to force re-mount of components on load
+  const [gameSessionId, setGameSessionId] = useState(0);
+  
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -399,6 +402,7 @@ const App = () => {
         if (newSources.length > 0) {
             setSources(prev => [...prev, ...newSources]);
             setVocab(prev => [...prev, ...newVocabItems]);
+            setGameSessionId(prev => prev + 1); // FORCE UPDATE to refresh components
         }
 
         // Handle Errors
@@ -452,11 +456,15 @@ const App = () => {
           
           // Note: We currently DO NOT merge progress (quiz scores etc) because it's complex.
           // We keep the current session's progress.
+          if (newSources.length > 0 || newVocab.length > 0) {
+              setGameSessionId(prev => prev + 1); // Refresh if new data added
+          }
       } else {
           // OVERWRITE LOGIC
           setVocab(incomingVocab);
           setSources(incomingSources);
           setProgress(saveData.progress || {});
+          setGameSessionId(prev => prev + 1); // FORCE UPDATE to re-mount game components with new progress
       }
   };
 
@@ -694,6 +702,7 @@ const App = () => {
 
     if (mode === GameMode.FLASHCARD) {
         return <FlashcardMode 
+                  key={`flashcard-${gameSessionId}`}
                   data={activeVocab} 
                   initialIndex={progress.flashcard?.index}
                   initialActiveLevels={progress.flashcard?.activeLevels}
@@ -708,6 +717,7 @@ const App = () => {
     }
     if (mode === GameMode.QUIZ) {
         return <QuizMode 
+                  key={`quiz-${gameSessionId}`}
                   data={activeVocab} 
                   initialState={progress.quiz}
                   jumpToId={jumpToId}
@@ -721,6 +731,7 @@ const App = () => {
     }
     if (mode === GameMode.MATCHING) {
         return <MatchingMode 
+                  key={`matching-${gameSessionId}`}
                   data={activeVocab} 
                   initialRound={progress.matching?.round}
                   initialBubbles={progress.matching?.bubbles}
@@ -733,7 +744,7 @@ const App = () => {
                   onUpdateLevel={handleLevelUpdate}
                />;
     }
-    if (mode === GameMode.WORD_LIST) return <WordListMode data={activeVocab} jumpToId={jumpToId} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} onGetSourceName={getSourceName} />;
+    if (mode === GameMode.WORD_LIST) return <WordListMode key={`wordlist-${gameSessionId}`} data={activeVocab} jumpToId={jumpToId} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} onGetSourceName={getSourceName} />;
 
     // MENU
     return (

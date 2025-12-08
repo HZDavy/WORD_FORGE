@@ -162,7 +162,7 @@ export const MatchingMode: React.FC<Props> = ({
            }, 1000);
            return () => clearTimeout(timer);
       }
-  }, [bubbles, round, totalRounds]);
+  }, [bubbles, round, totalRounds, bubbles.length]);
 
   // Focus input when editing round
   useEffect(() => {
