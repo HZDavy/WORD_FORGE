@@ -13,7 +13,6 @@ interface Props {
   onGetSourceName: (id: string) => string | undefined;
 }
 
-// Optimized Row Component
 const WordRow = React.memo(({ 
   item, 
   idx, 
@@ -27,7 +26,8 @@ const WordRow = React.memo(({
   onLightSwipeEnd,
   onLevelClick,
   onWordCycle,
-  onToggleDef
+  onToggleDef,
+  setRowHeight
 }: {
   item: VocabularyItem;
   idx: number;
@@ -42,26 +42,49 @@ const WordRow = React.memo(({
   onLevelClick: (e: React.MouseEvent, id: string, level: number, idx: number) => void;
   onWordCycle: (e: React.MouseEvent, item: VocabularyItem, idx: number) => void;
   onToggleDef: (e: React.MouseEvent, id: string, idx: number) => void;
+  setRowHeight: (idx: number, height: number) => void;
 }) => {
-  return (
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    // Dynamic height measurement
+    useEffect(() => {
+        if (!rowRef.current) return;
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (let entry of entries) {
+                // Use borderBoxSize if available for better accuracy including padding/border
+                const height = entry.borderBoxSize?.[0]?.blockSize || entry.contentRect.height;
+                setRowHeight(idx, height);
+            }
+        });
+        resizeObserver.observe(rowRef.current);
+        return () => resizeObserver.disconnect();
+    }, [idx, setRowHeight]);
+
+    return (
       <div 
+          ref={rowRef}
           id={`word-row-${idx}`}
           onClick={(e) => onRowClick(e, idx)} 
-          className={`flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20 z-10' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}`}
+          className={`
+            w-full box-border absolute top-0 left-0
+            flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer 
+            ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20 z-10' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}
+          `}
       >
-          {/* Traffic Lights Column */}
-          <div 
-              className="flex justify-between items-center mb-2 md:mb-0 md:justify-center gap-1 touch-none cursor-ew-resize md:py-3"
-              onTouchStart={(e) => onLightSwipeStart(e, idx)}
-              onTouchMove={(e) => onLightSwipeMove(e, item)}
-              onTouchEnd={onLightSwipeEnd}
-          >
+          {/* Traffic Lights Column - Pointer events removed from container to allow row click */}
+          <div className="flex justify-between items-center mb-2 md:mb-0 md:justify-center gap-1 md:py-3 pointer-events-none">
               <span className="text-xs text-monkey-sub font-bold uppercase md:hidden">Level</span>
-               <div className="flex gap-1">
+               {/* Inner Interactive Wrapper */}
+               <div 
+                  className="flex gap-1 pointer-events-auto cursor-ew-resize touch-none p-2 -m-2"
+                  onTouchStart={(e) => { e.stopPropagation(); onLightSwipeStart(e, idx); }}
+                  onTouchMove={(e) => { e.stopPropagation(); onLightSwipeMove(e, item); }}
+                  onTouchEnd={(e) => { e.stopPropagation(); onLightSwipeEnd(); }}
+               >
                   {[1, 2, 3].map(l => (
                       <div 
                           key={l}
-                          onClick={(e) => onLevelClick(e, item.id, item.level === l ? l - 1 : l, idx)}
+                          onClick={(e) => { e.stopPropagation(); onLevelClick(e, item.id, item.level === l ? l - 1 : l, idx); }}
                           className={`w-3 h-3 md:w-2 md:h-2 rounded-full border border-monkey-sub/50 cursor-pointer transition-transform ${item.level >= l ? (item.level === 3 ? 'bg-green-500 border-green-500' : 'bg-monkey-main border-monkey-main') : 'bg-transparent'}`}
                       ></div>
                   ))}
@@ -70,10 +93,14 @@ const WordRow = React.memo(({
 
           {/* Word Column */}
           <div 
-              className="text-xl md:text-lg font-bold text-monkey-text select-text hover:text-white transition-colors mb-2 md:mb-0 md:py-3 flex flex-wrap items-center gap-2"
-              onClick={(e) => { e.stopPropagation(); onWordCycle(e, item, idx); }}
+              className="text-xl md:text-lg font-bold text-monkey-text select-text transition-colors mb-2 md:mb-0 md:py-3 flex flex-wrap items-center gap-2"
           >
-              {item.word}
+              <span
+                  className="cursor-pointer hover:text-white"
+                  onClick={(e) => { e.stopPropagation(); onWordCycle(e, item, idx); }}
+              >
+                  {item.word}
+              </span>
               {sourceName && (
                   <span className="text-[10px] bg-monkey-sub/20 text-monkey-sub px-1.5 py-0.5 rounded font-normal align-middle truncate max-w-[120px]">
                       {sourceName}
@@ -83,12 +110,12 @@ const WordRow = React.memo(({
 
           {/* Definition Column */}
           <div 
-              className="cursor-pointer relative group leading-relaxed md:py-3 min-h-[1.5em]"
-              onClick={(e) => { e.stopPropagation(); onToggleDef(e, item.id, idx); }}
+              className="leading-relaxed md:py-3 min-h-[1.5em] group"
           >
               <span 
+                onClick={(e) => { e.stopPropagation(); onToggleDef(e, item.id, idx); }}
                 className={`
-                  rounded px-1
+                  rounded px-1 cursor-pointer
                   ${isDefVisible 
                     ? 'bg-transparent text-gray-200' 
                     : 'bg-[#3f4145] text-transparent select-none hover:bg-[#4a4c50] box-decoration-clone' 
@@ -101,7 +128,6 @@ const WordRow = React.memo(({
       </div>
   );
 }, (prev, next) => {
-    // Custom comparison for performance
     return (
         prev.item === next.item && 
         prev.idx === next.idx &&
@@ -135,6 +161,76 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     return data.filter(item => activeLevels.has(item.level));
   }, [data, activeLevels]);
 
+  // Virtualization State
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(800);
+  const rowHeights = useRef<{[key: number]: number}>({});
+  
+  // Force update when heights change to re-calculate offsets
+  const [, forceUpdate] = useState({});
+
+  useEffect(() => {
+      // Reset heights when data changes to prevent layout issues
+      rowHeights.current = {};
+  }, [filteredData]);
+
+  useEffect(() => {
+      if (!parentRef.current) return;
+      const resizeObserver = new ResizeObserver((entries) => {
+          for (let entry of entries) {
+              setContainerHeight(entry.contentRect.height);
+          }
+      });
+      resizeObserver.observe(parentRef.current);
+      return () => resizeObserver.disconnect();
+  }, []);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+      setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  const setRowHeight = useCallback((index: number, height: number) => {
+      if (rowHeights.current[index] !== height) {
+          rowHeights.current[index] = height;
+          forceUpdate({});
+      }
+  }, []);
+
+  // Calculate Virtual Items
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  const gap = isMobile ? 16 : 0; // 16px gap on mobile (gap-4), 0 on desktop
+  
+  let currentOffset = 0;
+  const virtualItems = [];
+  let startIndex = -1;
+  let endIndex = -1;
+  
+  // Buffer height to render outside visible area
+  const buffer = 500; 
+
+  for (let i = 0; i < filteredData.length; i++) {
+      // Use measured height or estimate (150 for mobile card, 60 for desktop row)
+      const height = rowHeights.current[i] || (isMobile ? 150 : 60);
+      
+      const top = currentOffset;
+      const bottom = top + height;
+
+      if (bottom >= scrollTop - buffer && top <= scrollTop + containerHeight + buffer) {
+          if (startIndex === -1) startIndex = i;
+          endIndex = i;
+          virtualItems.push({
+              index: i,
+              offsetTop: top,
+              item: filteredData[i]
+          });
+      }
+      
+      currentOffset += height + gap;
+  }
+  
+  const totalHeight = currentOffset + 80; // Extra padding at bottom
+
   // Clamp index if list shrinks
   useEffect(() => {
      if (selectedIndex >= filteredData.length && filteredData.length > 0) {
@@ -164,7 +260,6 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
   const handleCloseModal = () => {
       setIsClosingModal(true);
-      // Wait for spring-out animation to finish
       setTimeout(() => {
           setShowResetConfirm(false);
           setIsClosingModal(false);
@@ -189,31 +284,21 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       else next.add(id);
       return next;
     });
-    // Individual toggle doesn't necessarily mean keyboard mode switch, but row click handles that
   }, []);
 
   const handleLevelClick = useCallback((e: React.MouseEvent, id: string, level: number, idx: number) => {
-      e.stopPropagation();
+      // Keyboard selection logic handled by stopPropagation in row
       onUpdateLevel(id, level);
-      // Level click shouldn't disable keyboard mode if we want mixed usage, but to be safe usually it means mouse usage.
-      // However, per request "Lists items click to activate selection", this is inside the row.
-      // Let's keep existing logic or defer to row click. 
-      // Row click will fire if we don't stop propagation, but we stop propagation here.
-      // So let's leave keyboard state alone or set false?
-      // Usually clicking small controls implies mouse usage.
-      setUsingKeyboard(false);
   }, [onUpdateLevel]);
   
   const handleWordCycle = useCallback((e: React.MouseEvent, item: VocabularyItem, idx: number) => {
       const nextLevel = item.level >= 3 ? 0 : item.level + 1;
       onUpdateLevel(item.id, nextLevel);
-      setUsingKeyboard(false);
   }, [onUpdateLevel]);
 
   const handleLightSwipeStart = useCallback((e: React.TouchEvent, idx: number) => {
       lightSwipeStartX.current = e.touches[0].clientX;
       lastLightUpdateX.current = e.touches[0].clientX;
-      setUsingKeyboard(false);
   }, []);
 
   const handleLightSwipeMove = useCallback((e: React.TouchEvent, item: VocabularyItem) => {
@@ -245,28 +330,23 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   }, []);
 
   const handleRowClick = useCallback((e: React.MouseEvent, index: number) => {
+      // This is now reachable because inner elements stop propagation
       e.stopPropagation(); 
       setSelectedIndex(index);
-      setUsingKeyboard(true); // Activate keyboard highlight on click
+      setUsingKeyboard(true); 
   }, []);
 
   // Global Interaction Listener (Mouse vs Keyboard)
   useEffect(() => {
       const handleUserInteraction = (e: Event) => {
-          if (e.type === 'keydown') {
-             // We set usingKeyboard in specific handlers usually
-          } else if (e.type === 'mousemove') {
-             // Only disable keyboard mode on mouse movement
+          if (e.type === 'mousemove') {
              setUsingKeyboard(false);
           }
       };
       
       window.addEventListener('mousemove', handleUserInteraction);
-      window.addEventListener('keydown', handleUserInteraction);
-
       return () => {
           window.removeEventListener('mousemove', handleUserInteraction);
-          window.removeEventListener('keydown', handleUserInteraction);
       }
   }, []);
 
@@ -334,15 +414,28 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     };
   }, [onExit, filteredData, selectedIndex, onUpdateLevel, showResetConfirm, toggleAll]);
 
-  // Scroll current item into view
+  // Scroll current item into view if not visible (simplified auto-scroll)
   useEffect(() => {
-      if (filteredData.length > 0 && usingKeyboard) {
-          const el = document.getElementById(`word-row-${selectedIndex}`);
-          if (el) {
-              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-          }
+      if (filteredData.length > 0 && usingKeyboard && parentRef.current) {
+         // Logic to auto-scroll virtual list is complex, for now we rely on user scrolling or minimal behavior
+         // Proper auto-scroll needs to know offsets. We have offsets in 'virtualItems' but only for rendered ones.
+         // We can calculate offset of selectedIndex roughly.
+         const heightEstimate = isMobile ? 150 : 60;
+         const estimatedTop = selectedIndex * heightEstimate; // Rough fallback
+         const measuredTop = rowHeights.current[selectedIndex] !== undefined 
+            ? Object.entries(rowHeights.current)
+                .filter(([k]) => parseInt(k) < selectedIndex)
+                .reduce((acc, [, h]) => acc + h + gap, 0)
+            : estimatedTop;
+         
+         const parent = parentRef.current;
+         if (measuredTop < parent.scrollTop) {
+             parent.scrollTo({ top: measuredTop, behavior: 'smooth' });
+         } else if (measuredTop + heightEstimate > parent.scrollTop + parent.clientHeight) {
+             parent.scrollTo({ top: measuredTop - parent.clientHeight + heightEstimate + 50, behavior: 'smooth' });
+         }
       }
-  }, [selectedIndex, filteredData, usingKeyboard]);
+  }, [selectedIndex, filteredData, usingKeyboard, isMobile, gap]);
 
   return (
     <div 
@@ -387,7 +480,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
 
       {/* Header / Toolbar */}
       <div 
-        className="flex flex-col gap-4 mb-4 border-b border-monkey-sub/20 bg-monkey-bg sticky top-0 z-20 py-2"
+        className="flex flex-col gap-4 mb-4 border-b border-monkey-sub/20 bg-monkey-bg sticky top-0 z-20 py-2 shrink-0"
         onClick={(e) => e.stopPropagation()} 
       >
         <div className="flex justify-between items-center">
@@ -450,37 +543,47 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
         </div>
       </div>
 
-      {/* List */}
-      <div className="flex-grow overflow-y-auto pb-20 pr-2 custom-scrollbar relative">
-        <div className="flex flex-col gap-4 md:gap-0 md:block">
-            {/* Table Header (Desktop Only) */}
-            <div className="hidden md:grid grid-cols-[60px_1fr_2fr] gap-x-6 gap-y-2 items-center mb-2 pb-2 border-b border-monkey-sub/20">
-                <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider text-center">Lvl</div>
-                <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider">Word</div>
-                <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider">Definition</div>
-            </div>
+      {/* List Header (Desktop Only) */}
+      <div className="hidden md:grid grid-cols-[60px_1fr_2fr] gap-x-6 gap-y-2 items-center mb-2 pb-2 border-b border-monkey-sub/20 px-2 shrink-0">
+          <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider text-center">Lvl</div>
+          <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider">Word</div>
+          <div className="text-xs text-monkey-sub font-bold uppercase tracking-wider">Definition</div>
+      </div>
 
-            {/* Rows */}
+      {/* Virtualized List Container */}
+      <div 
+        ref={parentRef}
+        onScroll={handleScroll}
+        className="flex-grow overflow-y-auto custom-scrollbar relative w-full px-2"
+        style={{ contain: 'strict' }}
+      >
+        <div style={{ height: `${totalHeight}px`, position: 'relative', width: '100%' }}>
             {filteredData.length === 0 ? (
-                <div className="text-center py-10 text-monkey-sub">No words found in selected levels.</div>
+                <div className="text-center py-10 text-monkey-sub absolute w-full">No words found in selected levels.</div>
             ) : (
-                filteredData.map((item, idx) => (
-                    <WordRow
+                virtualItems.map(({ index, offsetTop, item }) => (
+                    <div
                         key={item.id}
-                        item={item}
-                        idx={idx}
-                        isDefVisible={showAllDefs || visibleDefs.has(item.id)}
-                        isSelected={usingKeyboard && idx === selectedIndex}
-                        showSource={showSource}
-                        sourceName={showSource && item.sourceId ? onGetSourceName(item.sourceId) : undefined}
-                        onRowClick={handleRowClick}
-                        onLevelClick={handleLevelClick}
-                        onWordCycle={handleWordCycle}
-                        onToggleDef={toggleIndividual}
-                        onLightSwipeStart={handleLightSwipeStart}
-                        onLightSwipeMove={handleLightSwipeMove}
-                        onLightSwipeEnd={handleLightSwipeEnd}
-                    />
+                        style={{ transform: `translateY(${offsetTop}px)` }}
+                        className="absolute w-full top-0 left-0"
+                    >
+                        <WordRow
+                            item={item}
+                            idx={index}
+                            isDefVisible={showAllDefs || visibleDefs.has(item.id)}
+                            isSelected={usingKeyboard && index === selectedIndex}
+                            showSource={showSource}
+                            sourceName={showSource && item.sourceId ? onGetSourceName(item.sourceId) : undefined}
+                            onRowClick={handleRowClick}
+                            onLevelClick={handleLevelClick}
+                            onWordCycle={handleWordCycle}
+                            onToggleDef={toggleIndividual}
+                            onLightSwipeStart={handleLightSwipeStart}
+                            onLightSwipeMove={handleLightSwipeMove}
+                            onLightSwipeEnd={handleLightSwipeEnd}
+                            setRowHeight={setRowHeight}
+                        />
+                    </div>
                 ))
             )}
         </div>
@@ -488,7 +591,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       
       {/* Legend */}
       {usingKeyboard && (
-          <div className="mt-2 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex pb-2 animate-fade-in">
+          <div className="mt-2 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex pb-2 animate-fade-in shrink-0">
               <span>↑/↓: Nav</span>
               <span>Space: Reveal</span>
               <span>←/→: Adjust Level</span>

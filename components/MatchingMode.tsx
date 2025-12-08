@@ -446,10 +446,10 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
           // 1. INSPECTOR MODE
           if (inspectedId && inspectedItem) {
               setUsingKeyboard(true);
-              if (e.code === 'ArrowUp') {
+              if (e.code === 'ArrowUp' || e.code === 'ArrowRight') {
                  e.preventDefault();
                  if (inspectedItem.level < 3) onUpdateLevel(inspectedItem.id, inspectedItem.level + 1);
-              } else if (e.code === 'ArrowDown') {
+              } else if (e.code === 'ArrowDown' || e.code === 'ArrowLeft') {
                  e.preventDefault();
                  if (inspectedItem.level > 0) onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
               }
@@ -722,7 +722,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
               onClick={(e) => {
                   e.stopPropagation();
                   setCursorIndex(index);
-                  setUsingKeyboard(true);
+                  // setUsingKeyboard(true); // Removed to prevent keyboard ring on mouse click
                   handleSelect(item.uid);
               }}
               onTouchStart={() => handleTouchStart(item.id)}
@@ -801,7 +801,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
                             ></div>
                         ))}
                   </div>
-                  <div className="mt-4 text-[10px] text-monkey-sub/50">Swipe lights or use ↑/↓ to grade</div>
+                  <div className="mt-4 text-[10px] text-monkey-sub/50">Swipe lights or use Arrow keys to grade</div>
               </div>
           </div>,
           document.body
