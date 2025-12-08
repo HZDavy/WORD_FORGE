@@ -321,6 +321,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
 
   // --- Modal Control ---
   const handleCloseInspector = () => {
+    // Backdrop animation is handled by parent container's opacity
     setIsClosingInspector(true);
     setTimeout(() => {
         setInspectedId(null);
@@ -393,7 +394,6 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
   // Helper to determine columns for grid navigation
   const getCols = () => {
     if (typeof window === 'undefined') return 2;
-    if (window.innerWidth >= 1280) return 5;
     if (window.innerWidth >= 1024) return 4;
     if (window.innerWidth >= 768) return 3;
     return 2;
@@ -633,7 +633,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
 
       {/* Grid Container */}
       <div 
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 md:gap-4 w-full mb-4 overflow-y-auto custom-scrollbar p-4 md:p-6 flex-grow"
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 w-full mb-4 overflow-y-auto custom-scrollbar p-4 md:p-6 flex-grow"
         style={{ gridAutoRows: '1fr' }} 
       >
         {bubbles.map((item, index) => {
@@ -743,11 +743,8 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
           <div 
              className={`fixed inset-0 z-[9999] flex items-center justify-center flex-col transition-opacity duration-300 ${isClosingInspector ? 'opacity-0' : 'opacity-100'}`}
           >
-             {/* Backdrop with transition applied via parent's opacity, but we can ensure bg covers fully */}
-             <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={handleCloseInspector}
-             ></div>
+             {/* Backdrop Wrapper for opacity fade */}
+             <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingInspector ? 'opacity-0' : 'opacity-100'}`} onClick={handleCloseInspector}></div>
 
               {/* Content Card */}
               <div 
@@ -788,12 +785,10 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
       {/* Round List Modal */}
       {showRoundList && createPortal(
           <div 
-             className={`fixed inset-0 z-[9999] flex items-center justify-center flex-col transition-opacity duration-300 ${isClosingList ? 'opacity-0' : 'opacity-100'}`}
+             className={`fixed inset-0 z-[9999] flex items-center justify-center flex-col`}
           >
-             <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={handleCloseList}
-             ></div>
+             {/* Backdrop Wrapper for opacity fade */}
+             <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingList ? 'opacity-0' : 'opacity-100'}`} onClick={handleCloseList}></div>
 
               {/* Content Card */}
               <div 
