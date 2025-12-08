@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { VocabularyItem } from '../types';
 import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw, FileBadge, Sliders } from 'lucide-react';
@@ -195,26 +196,40 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Option 1: '1' or Backtick (·/~)
-      if (e.key === '1' || e.code === 'Backquote') {
+      // Filters
+      if (e.key === '`' || e.key === '~' || e.code === 'Backquote') toggleFilter(0);
+      if (e.key === '1') toggleFilter(1);
+      if (e.key === '2') toggleFilter(2);
+      if (e.key === '3') toggleFilter(3);
+
+      // Toolbar Controls
+      if (e.key === '4') setShowGrading(prev => !prev);
+      if (e.key === '5') setShowSource(prev => !prev);
+      if (e.key === '6') handleShuffleClick();
+      if (e.key === '7') handleRestoreClick();
+
+      // Options
+      // Option 1: Tab
+      if (e.code === 'Tab') {
+        e.preventDefault();
         handleAnswer(0);
         return;
-      } 
-      // Option 2: '2' or Tab
-      if (e.key === '2' || e.code === 'Tab') {
-        if (e.code === 'Tab') e.preventDefault();
+      }
+      // Option 2: CapsLock
+      if (e.code === 'CapsLock') {
+        e.preventDefault(); // Prevents toggle if possible, usually just handles logic
         handleAnswer(1);
         return;
       }
-      // Option 3: '3' or CapsLock
-      if (e.key === '3' || e.code === 'CapsLock') {
-        if (e.code === 'CapsLock') e.preventDefault();
+      // Option 3: Shift
+      if (e.key === 'Shift') {
+        e.preventDefault();
         handleAnswer(2);
         return;
       }
-      // Option 4: '4' or Shift
-      if (e.key === '4' || e.key === 'Shift') {
-        if (e.key === 'Shift') e.preventDefault();
+      // Option 4: Control
+      if (e.key === 'Control') {
+        e.preventDefault();
         handleAnswer(3);
         return;
       }
@@ -312,19 +327,19 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
                  <button
                     onClick={() => setShowGrading(!showGrading)}
                     className={`p-2 transition-colors ${showGrading ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
-                    title="Toggle Grading (Space)"
+                    title="Toggle Grading (4)"
                  >
                     <Sliders size={16} />
                  </button>
                  <button
                     onClick={() => setShowSource(!showSource)}
                     className={`p-2 transition-colors ${showSource ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
-                    title="Toggle Source File"
+                    title="Toggle Source File (5)"
                  >
                     <FileBadge size={16} />
                  </button>
-                 <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16} /></button>
-                 <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={16} /></button>
+                 <button onClick={handleShuffleClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle (6)"><Shuffle size={16} /></button>
+                 <button onClick={handleRestoreClick} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order (7)"><RotateCcw size={16} /></button>
             </div>
         </div>
 
@@ -409,7 +424,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
                 {showResult && isSelected && !isCorrect && <XCircle className="text-monkey-error shrink-0 ml-2" size={20} />}
               </div>
               <span className="absolute top-2 right-3 text-[10px] font-mono font-bold text-monkey-sub/30 select-none">
-                {idx + 1}
+                {idx === 0 ? 'Tab' : idx === 1 ? 'Caps' : idx === 2 ? 'Shift' : 'Ctrl'}
               </span>
             </button>
           );
@@ -444,7 +459,7 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
       {/* Keyboard Legend */}
       <div className="mb-4 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex">
-          <span>1-4: Select</span>
+          <span>Tab/Caps/Shift/Ctrl: Select</span>
           <span>Space: Grade</span>
           <span>↑/↓: Level</span>
           <span>←/→: Nav</span>

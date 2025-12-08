@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VocabularyItem } from '../types';
 import { ArrowLeft, ArrowRight, Shuffle, RotateCcw, Eye, EyeOff, FileBadge } from 'lucide-react';
@@ -232,6 +233,18 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
   // -- Keyboard Controls --
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Filters
+      if (e.key === '`' || e.key === '~' || e.code === 'Backquote') toggleFilter(0);
+      if (e.key === '1') toggleFilter(1);
+      if (e.key === '2') toggleFilter(2);
+      if (e.key === '3') toggleFilter(3);
+
+      // Toolbars
+      if (e.key === '4') setShowSource(prev => !prev);
+      if (e.key === '5') toggleShowAllDefs();
+      if (e.key === '6') { setIndex(0); onShuffle(); }
+      if (e.key === '7') { setIndex(0); onRestore(); }
+
       if (e.code === 'Space') {
         e.preventDefault(); 
         toggleReveal();
@@ -323,19 +336,19 @@ export const FlashcardMode: React.FC<Props> = ({ data, initialIndex = 0, onExit,
             <button
                 onClick={() => setShowSource(!showSource)}
                 className={`p-2 transition-colors ${showSource ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
-                title="Toggle Source File"
+                title="Toggle Source File (4)"
             >
                 <FileBadge size={18} />
             </button>
             <button 
                 onClick={toggleShowAllDefs} 
                 className={`p-2 transition-colors ${showAllDefs ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`} 
-                title={showAllDefs ? "Hide Translations" : "Always Show Translations"}
+                title={showAllDefs ? "Hide Translations (5)" : "Always Show Translations (5)"}
             >
                 {showAllDefs ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
-            <button onClick={() => { setIndex(0); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={18} /></button>
-            <button onClick={() => { setIndex(0); onRestore(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order"><RotateCcw size={18} /></button>
+            <button onClick={() => { setIndex(0); onShuffle(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle (6)"><Shuffle size={18} /></button>
+            <button onClick={() => { setIndex(0); onRestore(); }} className="p-2 text-monkey-sub hover:text-monkey-main transition-colors" title="Restore Order (7)"><RotateCcw size={18} /></button>
         </div>
       </div>
 

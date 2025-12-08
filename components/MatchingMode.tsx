@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem, Bubble } from '../types';
@@ -153,7 +152,8 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
   }, [round]);
 
   // Round Jump Handler
-  const handleRoundTextClick = () => {
+  const handleRoundTextClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
       setEditRoundInput((round + 1).toString());
       setIsEditingRound(true);
   };
@@ -176,16 +176,20 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
 
   // Detect input method to toggle usingKeyboard state
   useEffect(() => {
-      const handleMouse = () => setUsingKeyboard(false);
+      const handleUserInteraction = (e: Event) => {
+          if (e.type === 'keydown') {
+             // We set usingKeyboard in specific handlers usually, but global listener is fine for activation
+          } else if (e.type === 'mousemove') {
+             setUsingKeyboard(false);
+          }
+      };
       
-      window.addEventListener('mousemove', handleMouse);
-      window.addEventListener('mousedown', handleMouse);
-      window.addEventListener('touchstart', handleMouse);
+      window.addEventListener('mousemove', handleUserInteraction);
+      window.addEventListener('keydown', handleUserInteraction);
       
       return () => {
-          window.removeEventListener('mousemove', handleMouse);
-          window.removeEventListener('mousedown', handleMouse);
-          window.removeEventListener('touchstart', handleMouse);
+          window.removeEventListener('mousemove', handleUserInteraction);
+          window.removeEventListener('keydown', handleUserInteraction);
       };
   }, []);
 
@@ -428,6 +432,17 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
 
           if (isEditingRound) return;
 
+          // Filters (~123)
+          if (e.key === '`' || e.key === '~' || e.code === 'Backquote') toggleFilter(0);
+          if (e.key === '1') toggleFilter(1);
+          if (e.key === '2') toggleFilter(2);
+          if (e.key === '3') toggleFilter(3);
+
+          // Toolbar (456)
+          if (e.key === '4') setShowRoundList(true);
+          if (e.key === '5') { setResetVersion(v => v + 1); setBubbles([]); onShuffle(); }
+          if (e.key === '6') { setResetVersion(v => v + 1); setBubbles([]); onRestore(); }
+
           // 1. INSPECTOR MODE
           if (inspectedId && inspectedItem) {
               setUsingKeyboard(true);
@@ -438,11 +453,12 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
                  e.preventDefault();
                  if (inspectedItem.level > 0) onUpdateLevel(inspectedItem.id, inspectedItem.level - 1);
               }
-              // Enter to close (Shift removed)
-              if (e.code === 'Enter') {
+              // Shift to close
+              if (e.key === 'Shift') {
                   e.preventDefault();
                   handleCloseInspector();
               }
+              // Removed Enter Key Closing
               return;
           }
 
@@ -512,17 +528,17 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
           } else if (e.code === 'Enter') {
               e.preventDefault();
               setUsingKeyboard(true);
-              // Enter: Inspect
+              // Enter: Select (Swapped back)
               if (bubbles[cursorIndex]) {
-                  setInspectedId(bubbles[cursorIndex].id);
+                  handleSelect(bubbles[cursorIndex].uid);
               }
           } else if (e.key === 'Shift') {
               e.preventDefault();
               if (e.repeat) return;
               setUsingKeyboard(true);
-              // Shift: Select
+              // Shift: Inspect (Swapped back)
               if (bubbles[cursorIndex]) {
-                  handleSelect(bubbles[cursorIndex].uid);
+                  setInspectedId(bubbles[cursorIndex].id);
               }
           }
       };
@@ -548,7 +564,10 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
   }
 
   return (
-    <div className="w-full max-w-[1800px] mx-auto flex flex-col h-full pt-2 md:pt-4 px-2 md:px-6 animate-game-pop-in relative">
+    <div 
+        className="w-full max-w-[1800px] mx-auto flex flex-col h-full pt-2 md:pt-4 px-2 md:px-6 animate-game-pop-in relative"
+        onClick={() => setUsingKeyboard(false)}
+    >
       
       {/* Top Bar - Fixed height */}
       <div className="flex justify-between items-center mb-2 md:mb-6 select-none relative z-10 shrink-0 pt-4 md:pt-0">
@@ -566,6 +585,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
                         onChange={(e) => setEditRoundInput(e.target.value)}
                         onBlur={handleRoundJumpSubmit}
                         onKeyDown={handleRoundInputKeyDown}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-16 bg-[#3e4044] border border-monkey-main text-white font-mono text-xl text-center rounded focus:outline-none"
                      />
                      <span className="text-monkey-sub text-base">/ {totalRounds}</span>
@@ -595,7 +615,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
                 {[0, 1, 2, 3].map(l => (
                     <button 
                         key={l} 
-                        onClick={() => toggleFilter(l)} 
+                        onClick={(e) => { e.stopPropagation(); toggleFilter(l); }} 
                         className={`w-6 h-6 md:w-8 md:h-8 rounded flex items-center justify-center text-[10px] md:text-sm font-bold transition-all ${activeLevels.has(l) ? 'bg-[#3e4044] text-gray-200 border border-monkey-sub/50' : 'bg-transparent text-monkey-sub border border-monkey-sub/20'}`}
                     >
                         {l}
@@ -607,23 +627,23 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
 
              <div className="flex gap-1 md:gap-2">
                 <button
-                    onClick={() => setShowRoundList(true)}
+                    onClick={(e) => { e.stopPropagation(); setShowRoundList(true); }}
                     className={`w-7 h-7 md:w-auto md:h-auto p-1 md:p-2 transition-colors flex items-center justify-center ${showRoundList ? 'text-monkey-text bg-monkey-sub/20 rounded' : 'text-monkey-sub hover:text-monkey-main'}`}
-                    title="View Round List (Space)"
+                    title="View Round List (4)"
                 >
                     <List size={18} className="md:w-5 md:h-5" />
                 </button>
                 <button 
-                    onClick={() => { setResetVersion(v => v + 1); setBubbles([]); onShuffle(); }} 
+                    onClick={(e) => { e.stopPropagation(); setResetVersion(v => v + 1); setBubbles([]); onShuffle(); }} 
                     className="w-7 h-7 md:w-auto md:h-auto p-1 md:p-2 text-monkey-sub hover:text-monkey-main transition-colors flex items-center justify-center" 
-                    title="Shuffle"
+                    title="Shuffle (5)"
                 >
                     <Shuffle size={18} className="md:w-5 md:h-5" />
                 </button>
                 <button 
-                    onClick={() => { setResetVersion(v => v + 1); setBubbles([]); onRestore(); }} 
+                    onClick={(e) => { e.stopPropagation(); setResetVersion(v => v + 1); setBubbles([]); onRestore(); }} 
                     className="w-7 h-7 md:w-auto md:h-auto p-1 md:p-2 text-monkey-sub hover:text-monkey-main transition-colors flex items-center justify-center" 
-                    title="Restore Order"
+                    title="Restore Order (6)"
                 >
                     <RotateCcw size={18} className="md:w-5 md:h-5" />
                 </button>
@@ -699,7 +719,12 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
               className={outerClass}
               // Only apply stagger delay if we are in the initial loading phase of the round
               style={item.status === 'default' && isRoundLoading ? { animationDelay: `${index * 30}ms` } : {}}
-              onClick={() => handleSelect(item.uid)}
+              onClick={(e) => {
+                  e.stopPropagation();
+                  setCursorIndex(index);
+                  setUsingKeyboard(true);
+                  handleSelect(item.uid);
+              }}
               onTouchStart={() => handleTouchStart(item.id)}
               onTouchEnd={handleTouchEnd}
               onMouseDown={() => handleTouchStart(item.id)}
@@ -720,7 +745,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
       {/* Footer Navigation */}
       <div className="w-full flex justify-between mt-auto mb-4 z-10 shrink-0">
           <button 
-            onClick={handlePrev} 
+            onClick={(e) => { e.stopPropagation(); handlePrev(); }}
             disabled={round === 0}
             className="flex items-center gap-2 px-4 py-3 md:px-6 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
           >
@@ -730,7 +755,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
           <div></div>
 
           <button 
-                onClick={handleNext}
+                onClick={(e) => { e.stopPropagation(); handleNext(); }}
                 disabled={round === totalRounds - 1}
                 className="flex items-center gap-2 px-4 py-3 md:px-6 rounded text-monkey-sub hover:text-monkey-main hover:bg-monkey-sub/10 disabled:opacity-30 transition-colors select-none"
             >
@@ -785,7 +810,7 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
       {/* Round List Modal */}
       {showRoundList && createPortal(
           <div 
-             className={`fixed inset-0 z-[9999] flex items-center justify-center flex-col`}
+             className={`fixed inset-0 z-[9999] flex items-center justify-center flex-col transition-opacity duration-300 ${isClosingList ? 'opacity-0' : 'opacity-100'}`}
           >
              {/* Backdrop Wrapper for opacity fade */}
              <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingList ? 'opacity-0' : 'opacity-100'}`} onClick={handleCloseList}></div>
@@ -807,7 +832,12 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
                           <div 
                             id={`round-list-item-${idx}`}
                             key={item.id} 
-                            className={`flex justify-between items-center p-3 rounded mb-1 transition-colors ${usingKeyboard && idx === listSelectedIndex ? 'bg-monkey-main/10 border border-monkey-main/30' : 'hover:bg-[#323437] border border-transparent'}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setListSelectedIndex(idx);
+                                setUsingKeyboard(true);
+                            }}
+                            className={`flex justify-between items-center p-3 rounded mb-1 transition-colors cursor-pointer ${usingKeyboard && idx === listSelectedIndex ? 'bg-monkey-main/10 border border-monkey-main/30' : 'hover:bg-[#323437] border border-transparent'}`}
                           >
                               <div className="flex-1 mr-4">
                                   <div className="font-bold text-monkey-main text-lg select-text">{item.word}</div>
@@ -843,8 +873,8 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, initialB
       {/* Keyboard Legend - Hidden on Mobile (Fix 2) */}
       <div className="mt-2 text-[10px] text-monkey-sub/30 gap-4 pointer-events-none pb-4 md:pb-0 overflow-x-auto whitespace-nowrap shrink-0 hidden md:flex">
           <span>Arrows: Move</span>
-          <span>Shift: Select</span>
-          <span>Enter: Inspect</span>
+          <span>Enter: Select</span>
+          <span>Shift: Inspect</span>
           <span>, / .: Page</span>
           <span>Space: List</span>
           <span>Esc: Exit</span>

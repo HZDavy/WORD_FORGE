@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem } from '../types';
-import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle, Keyboard, FileBadge } from 'lucide-react';
+import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle, FileBadge } from 'lucide-react';
 
 interface Props {
   data: VocabularyItem[];
@@ -48,7 +47,7 @@ const WordRow = React.memo(({
       <div 
           id={`word-row-${idx}`}
           onClick={(e) => onRowClick(e, idx)} 
-          className={`flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}`}
+          className={`flex flex-col p-4 rounded-lg border md:rounded-none md:p-0 md:grid md:grid-cols-[60px_1fr_2fr] md:gap-x-6 md:items-center border-b md:border-b transition-colors cursor-pointer ${isSelected ? 'bg-monkey-main/10 border-monkey-main/30 md:bg-monkey-main/5 ring-1 ring-monkey-main/20 z-10' : 'bg-[#2c2e31] border-monkey-sub/10 md:bg-transparent md:border-monkey-sub/10'}`}
       >
           {/* Traffic Lights Column */}
           <div 
@@ -125,10 +124,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   const [isClosingModal, setIsClosingModal] = useState(false);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [showSelection, setShowSelection] = useState(false);
-  const [isSelectionModeEnabled, setIsSelectionModeEnabled] = useState(false);
-  
-  const selectionTimerRef = useRef<number | null>(null);
+  const [usingKeyboard, setUsingKeyboard] = useState(false);
   
   // Filter Logic
   const [activeLevels, setActiveLevels] = useState<Set<number>>(new Set([0, 1, 2, 3]));
@@ -150,18 +146,6 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
   useEffect(() => {
       setSelectedIndex(0);
   }, [activeLevels]);
-
-  const wakeSelection = useCallback(() => {
-      if (!isSelectionModeEnabled) return;
-      
-      setShowSelection(true);
-      if (selectionTimerRef.current) {
-          window.clearTimeout(selectionTimerRef.current);
-      }
-      selectionTimerRef.current = window.setTimeout(() => {
-          setShowSelection(false);
-      }, 3000); // Hide after 3 seconds
-  }, [isSelectionModeEnabled]);
 
   const toggleFilter = (level: number) => {
     setActiveLevels(prev => {
@@ -205,40 +189,32 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       else next.add(id);
       return next;
     });
-    
-    if (isSelectionModeEnabled) {
-        setSelectedIndex(idx);
-        wakeSelection();
-    }
-  }, [isSelectionModeEnabled, wakeSelection]);
+    // Individual toggle doesn't necessarily mean keyboard mode switch, but row click handles that
+  }, []);
 
   const handleLevelClick = useCallback((e: React.MouseEvent, id: string, level: number, idx: number) => {
       e.stopPropagation();
       onUpdateLevel(id, level);
-      if (isSelectionModeEnabled) {
-        setSelectedIndex(idx);
-        wakeSelection();
-      }
-  }, [onUpdateLevel, isSelectionModeEnabled, wakeSelection]);
+      // Level click shouldn't disable keyboard mode if we want mixed usage, but to be safe usually it means mouse usage.
+      // However, per request "Lists items click to activate selection", this is inside the row.
+      // Let's keep existing logic or defer to row click. 
+      // Row click will fire if we don't stop propagation, but we stop propagation here.
+      // So let's leave keyboard state alone or set false?
+      // Usually clicking small controls implies mouse usage.
+      setUsingKeyboard(false);
+  }, [onUpdateLevel]);
   
   const handleWordCycle = useCallback((e: React.MouseEvent, item: VocabularyItem, idx: number) => {
       const nextLevel = item.level >= 3 ? 0 : item.level + 1;
       onUpdateLevel(item.id, nextLevel);
-      
-      if (isSelectionModeEnabled) {
-        setSelectedIndex(idx);
-        wakeSelection();
-      }
-  }, [onUpdateLevel, isSelectionModeEnabled, wakeSelection]);
+      setUsingKeyboard(false);
+  }, [onUpdateLevel]);
 
   const handleLightSwipeStart = useCallback((e: React.TouchEvent, idx: number) => {
       lightSwipeStartX.current = e.touches[0].clientX;
       lastLightUpdateX.current = e.touches[0].clientX;
-      if (isSelectionModeEnabled) {
-          setSelectedIndex(idx);
-          wakeSelection();
-      }
-  }, [isSelectionModeEnabled, wakeSelection]);
+      setUsingKeyboard(false);
+  }, []);
 
   const handleLightSwipeMove = useCallback((e: React.TouchEvent, item: VocabularyItem) => {
       if (lastLightUpdateX.current === null) return;
@@ -268,27 +244,31 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       lastLightUpdateX.current = null;
   }, []);
 
-  const handleContainerClick = () => {
-      setShowSelection(false);
-  };
-
   const handleRowClick = useCallback((e: React.MouseEvent, index: number) => {
       e.stopPropagation(); 
-      if (!isSelectionModeEnabled) return;
       setSelectedIndex(index);
-      wakeSelection();
-  }, [isSelectionModeEnabled, wakeSelection]);
+      setUsingKeyboard(true); // Activate keyboard highlight on click
+  }, []);
 
-  const toggleSelectionMode = () => {
-      const newState = !isSelectionModeEnabled;
-      setIsSelectionModeEnabled(newState);
-      if (newState) {
-          setShowSelection(true);
-          wakeSelection();
-      } else {
-          setShowSelection(false);
+  // Global Interaction Listener (Mouse vs Keyboard)
+  useEffect(() => {
+      const handleUserInteraction = (e: Event) => {
+          if (e.type === 'keydown') {
+             // We set usingKeyboard in specific handlers usually
+          } else if (e.type === 'mousemove') {
+             // Only disable keyboard mode on mouse movement
+             setUsingKeyboard(false);
+          }
+      };
+      
+      window.addEventListener('mousemove', handleUserInteraction);
+      window.addEventListener('keydown', handleUserInteraction);
+
+      return () => {
+          window.removeEventListener('mousemove', handleUserInteraction);
+          window.removeEventListener('keydown', handleUserInteraction);
       }
-  };
+  }, []);
 
   // Keyboard Handlers
   useEffect(() => {
@@ -301,20 +281,32 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
            }
            return;
        }
+       
+       // Filters
+       if (e.key === '`' || e.key === '~' || e.code === 'Backquote') toggleFilter(0);
+       if (e.key === '1') toggleFilter(1);
+       if (e.key === '2') toggleFilter(2);
+       if (e.key === '3') toggleFilter(3);
 
-       if (!isSelectionModeEnabled) return;
+       // Toolbar Shortcuts
+       if (e.key === '4') { onShuffle(); setSelectedIndex(0); }
+       if (e.key === '5') { onRestore(); setSelectedIndex(0); }
+       if (e.key === '6') handleResetClick();
+       if (e.key === '7') setShowSource(prev => !prev);
+       if (e.key === '8') toggleAll();
 
+       // Navigation
        if (e.code === 'ArrowDown') {
            e.preventDefault();
-           wakeSelection();
+           setUsingKeyboard(true);
            setSelectedIndex(prev => Math.min(prev + 1, filteredData.length - 1));
        } else if (e.code === 'ArrowUp') {
            e.preventDefault();
-           wakeSelection();
+           setUsingKeyboard(true);
            setSelectedIndex(prev => Math.max(prev - 1, 0));
        } else if (e.code === 'Space') {
            e.preventDefault();
-           wakeSelection();
+           setUsingKeyboard(true);
            const item = filteredData[selectedIndex];
            if (item) {
                setVisibleDefs(prev => {
@@ -326,12 +318,12 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
            }
        } else if (e.code === 'ArrowRight') {
            e.preventDefault();
-           wakeSelection();
+           setUsingKeyboard(true);
            const item = filteredData[selectedIndex];
            if (item && item.level < 3) onUpdateLevel(item.id, item.level + 1);
        } else if (e.code === 'ArrowLeft') {
            e.preventDefault();
-           wakeSelection();
+           setUsingKeyboard(true);
            const item = filteredData[selectedIndex];
            if (item && item.level > 0) onUpdateLevel(item.id, item.level - 1);
        }
@@ -339,24 +331,23 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
     window.addEventListener('keydown', handleKeyDown);
     return () => {
         window.removeEventListener('keydown', handleKeyDown);
-        if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
     };
-  }, [onExit, filteredData, selectedIndex, onUpdateLevel, wakeSelection, isSelectionModeEnabled, showResetConfirm]);
+  }, [onExit, filteredData, selectedIndex, onUpdateLevel, showResetConfirm, toggleAll]);
 
   // Scroll current item into view
   useEffect(() => {
-      if (filteredData.length > 0 && showSelection && isSelectionModeEnabled) {
+      if (filteredData.length > 0 && usingKeyboard) {
           const el = document.getElementById(`word-row-${selectedIndex}`);
           if (el) {
               el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
           }
       }
-  }, [selectedIndex, filteredData, showSelection, isSelectionModeEnabled]);
+  }, [selectedIndex, filteredData, usingKeyboard]);
 
   return (
     <div 
         className="w-full max-w-4xl mx-auto flex flex-col h-full pt-4 relative animate-game-pop-in"
-        onClick={handleContainerClick}
+        onClick={() => setUsingKeyboard(false)}
     >
       {/* Confirmation Modal */}
       {showResetConfirm && createPortal(
@@ -423,31 +414,23 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
-            <button onClick={() => { onShuffle(); setSelectedIndex(0); }} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle"><Shuffle size={16}/></button>
-            <button onClick={() => { onRestore(); setSelectedIndex(0); }} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Restore"><RotateCcw size={16}/></button>
+            <button onClick={() => { onShuffle(); setSelectedIndex(0); }} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Shuffle (4)"><Shuffle size={16}/></button>
+            <button onClick={() => { onRestore(); setSelectedIndex(0); }} className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-main transition-colors" title="Restore (5)"><RotateCcw size={16}/></button>
             
             <div className="w-px h-6 bg-monkey-sub/20 mx-1"></div>
             
             <button 
                 onClick={(e) => { e.stopPropagation(); handleResetClick(); }} 
                 className="p-2 bg-[#2c2e31] rounded text-monkey-sub hover:text-monkey-error transition-colors" 
-                title="Extinguish All Lights (Reset to Level 0)"
+                title="Extinguish All Lights (6)"
             >
                 <LightbulbOff size={16}/>
-            </button>
-
-            <button 
-                onClick={toggleSelectionMode}
-                className={`p-2 rounded transition-colors ${isSelectionModeEnabled ? 'bg-[#3e4044] text-gray-200' : 'bg-[#2c2e31] text-monkey-sub hover:text-monkey-text'}`}
-                title="Toggle Keyboard/Selection Mode"
-            >
-                <Keyboard size={16} />
             </button>
 
             <button
                 onClick={() => setShowSource(!showSource)}
                 className={`p-2 rounded transition-colors ${showSource ? 'bg-[#3e4044] text-gray-200' : 'bg-[#2c2e31] text-monkey-sub hover:text-monkey-text'}`}
-                title="Toggle Source File Display"
+                title="Toggle Source File Display (7)"
             >
                 <FileBadge size={16} />
             </button>
@@ -457,6 +440,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
             <button 
                 onClick={toggleAll}
                 className="flex items-center gap-2 px-3 py-2 md:px-4 rounded bg-[#2c2e31] border border-monkey-sub/30 hover:border-monkey-main text-monkey-text transition-colors text-xs md:text-sm font-mono active:scale-95"
+                title="Toggle Definitions (8)"
             >
                 {showAllDefs ? <EyeOff size={16}/> : <Eye size={16}/>}
                 <span className="hidden sm:inline">{showAllDefs ? 'Hide All' : 'Reveal All'}</span>
@@ -486,7 +470,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
                         item={item}
                         idx={idx}
                         isDefVisible={showAllDefs || visibleDefs.has(item.id)}
-                        isSelected={isSelectionModeEnabled && showSelection && idx === selectedIndex}
+                        isSelected={usingKeyboard && idx === selectedIndex}
                         showSource={showSource}
                         sourceName={showSource && item.sourceId ? onGetSourceName(item.sourceId) : undefined}
                         onRowClick={handleRowClick}
@@ -503,7 +487,7 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       </div>
       
       {/* Legend */}
-      {isSelectionModeEnabled && (
+      {usingKeyboard && (
           <div className="mt-2 text-[10px] text-monkey-sub/30 flex gap-4 pointer-events-none hidden md:flex pb-2 animate-fade-in">
               <span>↑/↓: Nav</span>
               <span>Space: Reveal</span>

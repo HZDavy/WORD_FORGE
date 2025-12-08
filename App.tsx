@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
@@ -22,12 +20,23 @@ const App = () => {
   
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchCursor, setSearchCursor] = useState(0);
+
+  // Keyboard Interaction State
+  const [usingKeyboard, setUsingKeyboard] = useState(false);
+  const [menuCursor, setMenuCursor] = useState(0);
+  
+  // Refs for programmatic clicks
+  const headerFileInputRef = useRef<HTMLInputElement>(null);
+  const emptyStateFileInputRef = useRef<HTMLInputElement>(null);
 
   // UI State for Source Manager
   const [isSourceManagerOpen, setIsSourceManagerOpen] = useState(false);
   const [isSourceManagerClosing, setIsSourceManagerClosing] = useState(false);
   const [isAnimCentered, setIsAnimCentered] = useState(true); // Control vertical position
   const [isSortMode, setIsSortMode] = useState(false); // New: Sort mode toggle
+  const [sourceListCursor, setSourceListCursor] = useState(0); // Keyboard cursor for source list
   
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -63,6 +72,31 @@ const App = () => {
       if (vocab.length === 0) setIsAnimCentered(true);
   }, [vocab.length]);
 
+  // Reset search cursor when query changes
+  useEffect(() => {
+      setSearchCursor(0);
+  }, [searchQuery]);
+
+  // Global Keyboard Detection
+  useEffect(() => {
+      const handleUserInteraction = (e: Event) => {
+          if (e.type === 'keydown') {
+             setUsingKeyboard(true);
+          } else if (e.type === 'mousemove') {
+             // Only disable keyboard mode on mouse movement, not clicks (clicks are handled separately)
+             setUsingKeyboard(false);
+          }
+      };
+
+      window.addEventListener('keydown', handleUserInteraction);
+      window.addEventListener('mousemove', handleUserInteraction);
+
+      return () => {
+          window.removeEventListener('keydown', handleUserInteraction);
+          window.removeEventListener('mousemove', handleUserInteraction);
+      }
+  }, []);
+
   // Search Logic (Updated for Bilingual Search)
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -91,6 +125,164 @@ const App = () => {
           return a.originalIndex - b.originalIndex;
       });
   }, []);
+
+  const handleLevelUpdate = useCallback((id: string, newLevel: number) => {
+    setVocab(prev => prev.map(item => 
+        item.id === id ? { ...item, level: Math.max(0, Math.min(3, newLevel)) } : item
+    ));
+  }, []);
+
+  // --- Keyboard Handling for Menu & Search ---
+  const getMenuCols = () => {
+      if (typeof window === 'undefined') return 1;
+      if (window.innerWidth >= 1024) return 4;
+      if (window.innerWidth >= 768) return 2;
+      return 1;
+  };
+
+  useEffect(() => {
+      if (mode !== GameMode.MENU) return;
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+          // 1. Search Navigation
+          if (searchQuery && searchResults.length > 0) {
+             if (e.code === 'ArrowDown') {
+                 e.preventDefault();
+                 setSearchCursor(prev => Math.min(prev + 1, searchResults.length - 1));
+             } else if (e.code === 'ArrowUp') {
+                 e.preventDefault();
+                 setSearchCursor(prev => Math.max(prev - 1, 0));
+             } else if (e.code === 'ArrowRight') {
+                 e.preventDefault();
+                 const item = searchResults[searchCursor];
+                 if (item && item.level < 3) handleLevelUpdate(item.id, item.level + 1);
+             } else if (e.code === 'ArrowLeft') {
+                 e.preventDefault();
+                 const item = searchResults[searchCursor];
+                 if (item && item.level > 0) handleLevelUpdate(item.id, item.level - 1);
+             } else if (e.code === 'Escape') {
+                 setSearchQuery('');
+             } else if (e.code === 'Space' && document.activeElement !== searchInputRef.current) {
+                 e.preventDefault();
+                 searchInputRef.current?.focus();
+             }
+             return;
+          }
+
+          // 2. Source Manager Navigation (When Open)
+          if (isSourceManagerOpen && !isSourceManagerClosing) {
+             if (e.code === 'ArrowDown') {
+                 e.preventDefault();
+                 setSourceListCursor(prev => Math.min(prev + 1, sources.length - 1));
+             } else if (e.code === 'ArrowUp') {
+                 e.preventDefault();
+                 setSourceListCursor(prev => Math.max(prev - 1, 0));
+             } else if (e.code === 'Enter') {
+                 e.preventDefault();
+                 const source = sources[sourceListCursor];
+                 if (source) toggleSource(source.id);
+             } else if (e.code === 'Space') {
+                 e.preventDefault();
+                 toggleAllSources();
+             } else if (e.code === 'Escape' || e.key === '`' || e.key === '~' || e.code === 'Backquote') {
+                 e.preventDefault();
+                 toggleSourceManager();
+             }
+             return;
+          }
+
+          // 3. Global Shortcuts (Menu Mode)
+          
+          // Toggle Source Manager
+          if (e.key === '`' || e.key === '~' || e.code === 'Backquote') {
+              e.preventDefault();
+              toggleSourceManager();
+              return;
+          }
+
+          // Save / Export
+          if (e.key === '1') {
+              e.preventDefault();
+              handleExportProgress();
+              return;
+          }
+
+          // Add / Upload
+          if (e.key === '2') {
+              e.preventDefault();
+              headerFileInputRef.current?.click();
+              return;
+          }
+
+          // Empty State Interactions
+          if (vocab.length === 0) {
+             if (e.code === 'Space' || e.code === 'Enter') {
+                 e.preventDefault();
+                 emptyStateFileInputRef.current?.click();
+             }
+             return;
+          }
+          
+          // 4. Main Menu Grid Navigation
+          // (only if no active search results or search is empty)
+          if (!searchQuery) {
+              const menuItemsCount = 4;
+              const cols = getMenuCols();
+
+              if (e.code === 'ArrowRight') {
+                  e.preventDefault();
+                  setMenuCursor(prev => Math.min(prev + 1, menuItemsCount - 1));
+              } else if (e.code === 'ArrowLeft') {
+                  e.preventDefault();
+                  setMenuCursor(prev => Math.max(prev - 1, 0));
+              } else if (e.code === 'ArrowDown') {
+                  e.preventDefault();
+                  setMenuCursor(prev => Math.min(prev + cols, menuItemsCount - 1));
+              } else if (e.code === 'ArrowUp') {
+                  e.preventDefault();
+                  setMenuCursor(prev => Math.max(prev - cols, 0));
+              } else if (e.code === 'Enter') {
+                  e.preventDefault();
+                  if (menuCursor === 0) setMode(GameMode.FLASHCARD);
+                  if (menuCursor === 1) setMode(GameMode.QUIZ);
+                  if (menuCursor === 2) setMode(GameMode.MATCHING);
+                  if (menuCursor === 3) setMode(GameMode.WORD_LIST);
+              } else if (e.code === 'Space') {
+                 e.preventDefault();
+                 searchInputRef.current?.focus();
+              }
+          }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, searchQuery, searchResults, searchCursor, menuCursor, handleLevelUpdate, isSourceManagerOpen, isSourceManagerClosing, sources, sourceListCursor]);
+
+  // Scroll search item into view
+  useEffect(() => {
+      if (searchQuery && usingKeyboard) {
+          const el = document.getElementById(`search-result-${searchCursor}`);
+          if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+      }
+  }, [searchCursor, searchQuery, usingKeyboard]);
+
+  // Scroll source list item into view
+  useEffect(() => {
+      if (isSourceManagerOpen && usingKeyboard) {
+          const el = document.getElementById(`source-item-${sourceListCursor}`);
+          if (el) {
+              el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+      }
+  }, [sourceListCursor, isSourceManagerOpen, usingKeyboard]);
+
+  // Reset source cursor when manager opens
+  useEffect(() => {
+      if (isSourceManagerOpen) setSourceListCursor(0);
+  }, [isSourceManagerOpen]);
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = e.target;
@@ -414,12 +606,6 @@ const App = () => {
   }, []);
 
 
-  const handleLevelUpdate = useCallback((id: string, newLevel: number) => {
-    setVocab(prev => prev.map(item => 
-        item.id === id ? { ...item, level: Math.max(0, Math.min(3, newLevel)) } : item
-    ));
-  }, []);
-
   const handleResetLevels = useCallback((id: string, newLevel: number) => {
     setVocab(prev => prev.map(item => ({ ...item, level: 0 })));
   }, []);
@@ -544,7 +730,7 @@ const App = () => {
                   <FileUp size={48} className="text-monkey-sub group-hover:text-monkey-main transition-colors mb-4 duration-300" />
                   <span className="text-lg md:text-xl font-bold text-monkey-text mb-2 text-center">Upload Files / Load Progress</span>
                   <span className="text-xs md:text-sm text-monkey-sub text-center px-4">Supported: PDF, DOCX, TXT, .FORGE (Batch supported)</span>
-                  <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
+                  <input ref={emptyStateFileInputRef} type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
                 </label>
                 {error && (
                   <div className="mt-6 relative flex items-center gap-2 text-monkey-error bg-monkey-error/10 p-3 pr-10 rounded text-sm animate-shake">
@@ -582,6 +768,7 @@ const App = () => {
                         <div 
                             className="flex items-center gap-2 cursor-pointer group mr-4 select-none"
                             onClick={toggleSourceManager}
+                            title="Shortcut: ` (Backtick)"
                         >
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                             <span className="font-mono text-sm">
@@ -596,7 +783,7 @@ const App = () => {
                         <button 
                             onClick={handleExportProgress} 
                             className="text-xs text-monkey-sub hover:text-monkey-main flex items-center gap-1 transition-colors"
-                            title="Save current progress"
+                            title="Save current progress (1)"
                         >
                             <Save size={14} />
                             <span className="hidden sm:inline">Save</span>
@@ -604,10 +791,10 @@ const App = () => {
 
                         <div className="w-px h-4 bg-monkey-sub/20"></div>
 
-                        <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors">
+                        <label className="text-xs text-monkey-sub hover:text-monkey-text cursor-pointer hover:underline flex items-center gap-1 transition-colors" title="Add/Replace Files (2)">
                             <FileUp size={14} />
                             <span className="hidden sm:inline">Add/Replace</span>
-                            <input type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
+                            <input ref={headerFileInputRef} type="file" multiple className="hidden" accept=".pdf,.txt,.docx,.forge,.json,application/json,application/octet-stream,text/json" onChange={handleFileUpload} />
                         </label>
                         </div>
                     </div>
@@ -644,7 +831,7 @@ const App = () => {
                                                 <button 
                                                 onClick={(e) => { e.stopPropagation(); toggleAllSources(); }} 
                                                 className="text-monkey-sub hover:text-monkey-main transition-colors"
-                                                title={allSourcesEnabled ? "Deselect All" : "Select All"}
+                                                title={allSourcesEnabled ? "Deselect All (Space)" : "Select All (Space)"}
                                                 >
                                                     {allSourcesEnabled ? <CheckSquare size={16} /> : <Square size={16} />}
                                                 </button>
@@ -661,8 +848,14 @@ const App = () => {
                                         <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
                                             {sources.map((source, index) => (
                                                 <div 
+                                                    id={`source-item-${index}`}
                                                     key={source.id} 
-                                                    className="flex justify-between items-center p-2 rounded hover:bg-[#323437] transition-all group/item select-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSourceListCursor(index);
+                                                        setUsingKeyboard(true);
+                                                    }}
+                                                    className={`flex justify-between items-center p-2 rounded transition-all group/item select-none ${usingKeyboard && index === sourceListCursor ? 'bg-monkey-main/10 border border-monkey-main/30' : 'hover:bg-[#323437] border border-transparent'}`}
                                                 >
                                                     {editingSourceId === source.id ? (
                                                         <div className="flex items-center gap-2 flex-1 mr-2">
@@ -755,10 +948,11 @@ const App = () => {
                             <div className="relative group">
                                 <Search className="absolute left-4 top-1/2 -translate-x-0 -translate-y-1/2 text-monkey-sub group-focus-within:text-monkey-main transition-colors" size={18} />
                                 <input 
+                                    ref={searchInputRef}
                                     type="text" 
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search English words or Chinese definitions..."
+                                    placeholder="Search English words or Chinese definitions... (Space)"
                                     autoComplete="off"
                                     autoCorrect="off"
                                     spellCheck={false}
@@ -778,7 +972,16 @@ const App = () => {
                                     <div className="absolute top-full left-0 w-full mt-2 bg-[#2c2e31] border border-monkey-sub/20 rounded-xl shadow-2xl max-h-[45vh] overflow-y-auto custom-scrollbar z-50 overscroll-contain">
                                         {searchResults.length > 0 ? (
                                             searchResults.map((item, idx) => (
-                                                <div key={item.id} className="p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-colors">
+                                                <div 
+                                                    id={`search-result-${idx}`}
+                                                    key={item.id} 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSearchCursor(idx);
+                                                        setUsingKeyboard(true);
+                                                    }}
+                                                    className={`p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-all duration-200 ${usingKeyboard && idx === searchCursor ? 'bg-monkey-main/10' : ''}`}
+                                                >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <span className="font-bold text-monkey-main select-all">{item.word}</span>
                                                         
@@ -838,6 +1041,7 @@ const App = () => {
                             desc="Flip-card study" 
                             delay={100}
                             onClick={() => setMode(GameMode.FLASHCARD)} 
+                            isSelected={usingKeyboard && !searchQuery && menuCursor === 0}
                             />
                             <MenuCard 
                             icon={<BrainCircuit size={24} />}
@@ -845,6 +1049,7 @@ const App = () => {
                             desc="4-choice test" 
                             delay={200}
                             onClick={() => setMode(GameMode.QUIZ)} 
+                            isSelected={usingKeyboard && !searchQuery && menuCursor === 1}
                             />
                             <MenuCard 
                             icon={<Gamepad2 size={24} />}
@@ -852,6 +1057,7 @@ const App = () => {
                             desc="Connect pairs" 
                             delay={300}
                             onClick={() => setMode(GameMode.MATCHING)} 
+                            isSelected={usingKeyboard && !searchQuery && menuCursor === 2}
                             />
                             <MenuCard 
                             icon={<ListChecks size={24} />}
@@ -859,6 +1065,7 @@ const App = () => {
                             desc="View & Mark" 
                             delay={400}
                             onClick={() => setMode(GameMode.WORD_LIST)} 
+                            isSelected={usingKeyboard && !searchQuery && menuCursor === 3}
                             />
                         </div>
                     </div>
@@ -911,6 +1118,7 @@ const App = () => {
       className="fixed inset-0 w-full h-full bg-monkey-bg text-monkey-text font-mono selection:bg-monkey-main selection:text-monkey-bg flex flex-col overflow-hidden"
       onTouchStart={handleGlobalTouchStart}
       onTouchEnd={handleGlobalTouchEnd}
+      onClick={() => setUsingKeyboard(false)}
     >
       {/* Background Effect - Rendered at root to ensure full coverage */}
       {mode === GameMode.MENU && <MatrixRain />}
@@ -1021,15 +1229,18 @@ const App = () => {
   );
 };
 
-const MenuCard = ({ title, desc, icon, onClick, delay }: { title: string, desc: string, icon: React.ReactNode, onClick: () => void, delay: number }) => (
+// Simplified MenuCard using exact hover styles for keyboard selection
+const MenuCard = ({ title, desc, icon, onClick, delay, isSelected }: { title: string, desc: string, icon: React.ReactNode, onClick: () => void, delay: number, isSelected?: boolean }) => (
   <button 
-    onClick={onClick}
+    onClick={(e) => { e.stopPropagation(); onClick(); }}
     style={{ animationDelay: `${delay}ms` }}
-    className="flex flex-row md:flex-col items-center md:text-center p-4 md:p-6 rounded-xl bg-[#2c2e31]/80 backdrop-blur-md border border-monkey-sub/20 hover:border-monkey-main hover:-translate-y-1 transition-all duration-300 group text-left md:justify-center gap-4 md:gap-0 animate-pop-in opacity-0 fill-mode-forwards"
+    className={`flex flex-row md:flex-col items-center md:text-center p-4 md:p-6 rounded-xl backdrop-blur-md border transition-all duration-300 group text-left md:justify-center gap-4 md:gap-0 animate-pop-in opacity-0 fill-mode-forwards 
+    bg-[#2c2e31]/80 border-monkey-sub/20 hover:border-monkey-main hover:-translate-y-1 
+    ${isSelected ? 'border-monkey-main -translate-y-1' : ''}`}
   >
-    <div className="md:mb-4 text-monkey-sub group-hover:text-monkey-main transition-colors duration-300 transform group-hover:scale-110 shrink-0">{icon}</div>
+    <div className={`md:mb-4 transition-colors duration-300 transform shrink-0 ${isSelected ? 'text-monkey-main scale-110' : 'text-monkey-sub group-hover:text-monkey-main group-hover:scale-110'}`}>{icon}</div>
     <div>
-        <h3 className="text-lg font-bold mb-1 text-monkey-text group-hover:text-white">{title}</h3>
+        <h3 className={`text-lg font-bold mb-1 transition-colors ${isSelected ? 'text-white' : 'text-monkey-text group-hover:text-white'}`}>{title}</h3>
         <p className="text-xs text-monkey-sub">{desc}</p>
     </div>
   </button>
