@@ -1005,7 +1005,7 @@ const App = () => {
                                                         
                                                         {/* Interactive Traffic Lights in Search */}
                                                         <div 
-                                                            className="flex gap-1 p-2 -m-2 translate-y-1 cursor-ew-resize touch-none select-none"
+                                                            className="flex gap-1 p-2 -m-2 translate-y-2 cursor-ew-resize touch-none select-none"
                                                             onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
                                                             onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
                                                             onTouchEnd={handleSearchLightSwipeEnd}

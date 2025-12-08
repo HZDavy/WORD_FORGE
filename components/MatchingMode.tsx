@@ -62,6 +62,10 @@ export const MatchingMode: React.FC<Props> = ({
       for (let i = 0; i < initialRound; i++) {
           s.add(i);
       }
+      // Fix: If the loaded state is fully matched, mark it as completed immediately
+      if (initialBubbles && initialBubbles.length > 0 && initialBubbles.every(b => b.matched)) {
+          s.add(initialRound);
+      }
       return s;
   });
 
@@ -224,6 +228,7 @@ export const MatchingMode: React.FC<Props> = ({
       if (!isNaN(val) && val >= 1 && val <= totalRounds) {
           setRound(val - 1);
           setBubbles([]); // Regenerate
+          setResetVersion(v => v + 1);
           setSelectedId(null);
           setCursorIndex(0);
       }
