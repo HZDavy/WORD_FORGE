@@ -195,9 +195,32 @@ export const QuizMode: React.FC<Props> = ({ data, initialState, onExit, onShuffl
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key >= '1' && e.key <= '4') {
-        handleAnswer(parseInt(e.key) - 1);
-      } else if (e.code === 'ArrowRight') {
+      // Option 1: '1' or Backtick (·/~)
+      if (e.key === '1' || e.code === 'Backquote') {
+        handleAnswer(0);
+        return;
+      } 
+      // Option 2: '2' or Tab
+      if (e.key === '2' || e.code === 'Tab') {
+        if (e.code === 'Tab') e.preventDefault();
+        handleAnswer(1);
+        return;
+      }
+      // Option 3: '3' or CapsLock
+      if (e.key === '3' || e.code === 'CapsLock') {
+        if (e.code === 'CapsLock') e.preventDefault();
+        handleAnswer(2);
+        return;
+      }
+      // Option 4: '4' or Shift
+      if (e.key === '4' || e.key === 'Shift') {
+        if (e.key === 'Shift') e.preventDefault();
+        handleAnswer(3);
+        return;
+      }
+
+      // Navigation & Controls
+      if (e.code === 'ArrowRight') {
          handleNext();
       } else if (e.code === 'ArrowLeft') {
          handlePrev();
