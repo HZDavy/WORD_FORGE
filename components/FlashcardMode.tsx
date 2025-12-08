@@ -8,6 +8,7 @@ interface Props {
   data: VocabularyItem[];
   initialIndex?: number;
   initialActiveLevels?: number[];
+  jumpToId?: string | null;
   onExit: () => void;
   onUpdateLevel: (id: string, level: number) => void;
   onShuffle: () => void;
@@ -20,6 +21,7 @@ export const FlashcardMode: React.FC<Props> = ({
   data, 
   initialIndex = 0, 
   initialActiveLevels,
+  jumpToId,
   onExit, 
   onUpdateLevel, 
   onShuffle, 
@@ -58,6 +60,17 @@ export const FlashcardMode: React.FC<Props> = ({
 
   const currentCard = filteredData[index];
   const nextCard = filteredData[index + 1]; 
+
+  // Jump to specific word if requested
+  useEffect(() => {
+    if (jumpToId && filteredData.length > 0) {
+        const targetIndex = filteredData.findIndex(item => item.id === jumpToId);
+        if (targetIndex !== -1) {
+            setIndex(targetIndex);
+            setIsRevealed(false);
+        }
+    }
+  }, [jumpToId, filteredData]);
 
   // Save progress whenever index or filter changes
   useEffect(() => {

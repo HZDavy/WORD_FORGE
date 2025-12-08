@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem, Bubble } from '../types';
@@ -10,6 +8,7 @@ interface Props {
   initialRound?: number;
   initialBubbles?: Bubble[];
   initialActiveLevels?: number[];
+  jumpToId?: string | null;
   onExit: () => void;
   onShuffle: () => void;
   onRestore: () => void;
@@ -24,6 +23,7 @@ export const MatchingMode: React.FC<Props> = ({
   initialRound = 0, 
   initialBubbles, 
   initialActiveLevels,
+  jumpToId,
   onExit, 
   onShuffle, 
   onRestore, 
@@ -105,6 +105,21 @@ export const MatchingMode: React.FC<Props> = ({
       const end = start + ITEMS_PER_ROUND;
       return filteredData.slice(start, end);
   }, [filteredData, round]);
+
+  // Jump to specific word if requested
+  useEffect(() => {
+    if (jumpToId && filteredData.length > 0) {
+        const targetIndex = filteredData.findIndex(item => item.id === jumpToId);
+        if (targetIndex !== -1) {
+            const targetRound = Math.floor(targetIndex / ITEMS_PER_ROUND);
+            setRound(targetRound);
+            setBubbles([]); // Force regen
+            setResetVersion(v => v + 1); // FORCE REGEN: Ensure bubbles regenerate even if state update batching makes bubbles look non-empty
+            setSelectedId(null);
+            setCursorIndex(0);
+        }
+    }
+  }, [jumpToId, filteredData]);
 
   // Persist Progress (Round + Bubble State + Filter State)
   useEffect(() => {

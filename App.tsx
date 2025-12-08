@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { parsePdf, parseTxt, parseDocx } from './services/pdfProcessor';
@@ -10,7 +8,7 @@ import { MatchingMode } from './components/MatchingMode';
 import { WordListMode } from './components/WordListMode';
 import { MatrixRain } from './components/MatrixRain';
 import { TimerWidget } from './components/TimerWidget';
-import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronUp, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser, ArrowDownUp } from 'lucide-react';
+import { FileUp, BookOpen, BrainCircuit, Gamepad2, AlertCircle, Flame, ListChecks, Save, Trash2, CheckSquare, Square, ChevronDown, ChevronUp, ChevronRight, FileText, Pencil, Check, X, FileStack, CopyPlus, Replace, AlertTriangle, Search, Eraser, ArrowDownUp, MoreHorizontal, Target } from 'lucide-react';
 
 const App = () => {
   const [mode, setMode] = useState<GameMode>(GameMode.MENU);
@@ -24,6 +22,10 @@ const App = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchCursor, setSearchCursor] = useState(0);
+  const [activeSearchMenuId, setActiveSearchMenuId] = useState<string | null>(null);
+
+  // Jump Navigation State
+  const [jumpToId, setJumpToId] = useState<string | null>(null);
 
   // Keyboard Interaction State
   const [usingKeyboard, setUsingKeyboard] = useState(false);
@@ -77,6 +79,7 @@ const App = () => {
   // Reset search cursor when query changes
   useEffect(() => {
       setSearchCursor(0);
+      setActiveSearchMenuId(null);
   }, [searchQuery]);
 
   // Global Keyboard Detection
@@ -591,6 +594,7 @@ const App = () => {
 
   const resetGame = useCallback(() => {
     setMode(GameMode.MENU);
+    setJumpToId(null);
   }, []);
 
   // -- Persistence Handlers --
@@ -664,6 +668,13 @@ const App = () => {
       searchLastLightUpdateX.current = null;
   };
 
+  // --- Jump To Mode Logic ---
+  const handleJumpToWord = (item: VocabularyItem, targetMode: GameMode) => {
+      setJumpToId(item.id);
+      setMode(targetMode);
+      setSearchQuery(''); // Close search
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -686,6 +697,7 @@ const App = () => {
                   data={activeVocab} 
                   initialIndex={progress.flashcard?.index}
                   initialActiveLevels={progress.flashcard?.activeLevels}
+                  jumpToId={jumpToId}
                   onExit={resetGame} 
                   onUpdateLevel={handleLevelUpdate} 
                   onShuffle={handleShuffle} 
@@ -698,6 +710,7 @@ const App = () => {
         return <QuizMode 
                   data={activeVocab} 
                   initialState={progress.quiz}
+                  jumpToId={jumpToId}
                   onExit={resetGame} 
                   onShuffle={handleShuffle} 
                   onRestore={handleRestore}
@@ -712,6 +725,7 @@ const App = () => {
                   initialRound={progress.matching?.round}
                   initialBubbles={progress.matching?.bubbles}
                   initialActiveLevels={progress.matching?.activeLevels}
+                  jumpToId={jumpToId}
                   onExit={resetGame} 
                   onShuffle={handleShuffle} 
                   onRestore={handleRestore} 
@@ -719,7 +733,7 @@ const App = () => {
                   onUpdateLevel={handleLevelUpdate}
                />;
     }
-    if (mode === GameMode.WORD_LIST) return <WordListMode data={activeVocab} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} onGetSourceName={getSourceName} />;
+    if (mode === GameMode.WORD_LIST) return <WordListMode data={activeVocab} jumpToId={jumpToId} onExit={resetGame} onUpdateLevel={handleLevelUpdate} onResetLevels={() => handleResetLevels('', 0)} onShuffle={handleShuffle} onRestore={handleRestore} onGetSourceName={getSourceName} />;
 
     // MENU
     return (
@@ -984,14 +998,14 @@ const App = () => {
                                                         setSearchCursor(idx);
                                                         setUsingKeyboard(true);
                                                     }}
-                                                    className={`p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-all duration-200 ${usingKeyboard && idx === searchCursor ? 'bg-monkey-main/10' : ''}`}
+                                                    className={`p-3 border-b border-monkey-sub/10 last:border-0 hover:bg-[#323437] transition-all duration-200 relative group/result ${usingKeyboard && idx === searchCursor ? 'bg-monkey-main/10' : ''}`}
                                                 >
-                                                    <div className="flex justify-between items-start mb-1">
+                                                    <div className="flex justify-between items-start mb-1 pr-8">
                                                         <span className="font-bold text-monkey-main select-all">{item.word}</span>
                                                         
                                                         {/* Interactive Traffic Lights in Search */}
                                                         <div 
-                                                            className="flex gap-1 p-2 -m-2 cursor-ew-resize touch-none select-none"
+                                                            className="flex gap-1 p-2 -m-2 translate-y-1 cursor-ew-resize touch-none select-none"
                                                             onTouchStart={(e) => handleSearchLightSwipeStart(e, item)}
                                                             onTouchMove={(e) => handleSearchLightSwipeMove(e, item)}
                                                             onTouchEnd={handleSearchLightSwipeEnd}
@@ -1017,6 +1031,45 @@ const App = () => {
                                                             {getSourceName(item.sourceId)}
                                                         </div>
                                                     )}
+
+                                                    {/* Quick Action Button */}
+                                                    <div className="absolute top-2 right-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveSearchMenuId(activeSearchMenuId === item.id ? null : item.id);
+                                                            }}
+                                                            className={`p-1 rounded hover:bg-monkey-sub/20 text-monkey-sub hover:text-monkey-text transition-colors ${activeSearchMenuId === item.id ? 'bg-monkey-sub/20 text-monkey-text' : ''}`}
+                                                            title="Jump to Game"
+                                                        >
+                                                            <MoreHorizontal size={16} />
+                                                        </button>
+                                                        
+                                                        {/* Collapsible Game Mode Menu */}
+                                                        {activeSearchMenuId === item.id && (
+                                                            <div className="absolute right-0 top-full mt-1 bg-[#2c2e31] border border-monkey-sub/30 rounded-lg shadow-xl z-[60] flex flex-row overflow-hidden animate-spring-in origin-top-right">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleJumpToWord(item, GameMode.FLASHCARD); }} className="p-2 hover:bg-[#3e4044] text-monkey-sub hover:text-monkey-main flex flex-col items-center gap-1 min-w-[3rem]" title="Flashcards">
+                                                                    <BookOpen size={16} />
+                                                                    <span className="text-[10px] font-bold">练</span>
+                                                                </button>
+                                                                <div className="w-px bg-monkey-sub/20 my-1"></div>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleJumpToWord(item, GameMode.QUIZ); }} className="p-2 hover:bg-[#3e4044] text-monkey-sub hover:text-monkey-main flex flex-col items-center gap-1 min-w-[3rem]" title="Quiz">
+                                                                    <BrainCircuit size={16} />
+                                                                    <span className="text-[10px] font-bold">测</span>
+                                                                </button>
+                                                                <div className="w-px bg-monkey-sub/20 my-1"></div>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleJumpToWord(item, GameMode.MATCHING); }} className="p-2 hover:bg-[#3e4044] text-monkey-sub hover:text-monkey-main flex flex-col items-center gap-1 min-w-[3rem]" title="Matching">
+                                                                    <Gamepad2 size={16} />
+                                                                    <span className="text-[10px] font-bold">连</span>
+                                                                </button>
+                                                                <div className="w-px bg-monkey-sub/20 my-1"></div>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleJumpToWord(item, GameMode.WORD_LIST); }} className="p-2 hover:bg-[#3e4044] text-monkey-sub hover:text-monkey-main flex flex-col items-center gap-1 min-w-[3rem]" title="Word List">
+                                                                    <ListChecks size={16} />
+                                                                    <span className="text-[10px] font-bold">看</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))
                                         ) : (

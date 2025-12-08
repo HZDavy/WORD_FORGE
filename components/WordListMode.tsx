@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { VocabularyItem } from '../types';
@@ -5,6 +7,7 @@ import { Eye, EyeOff, Shuffle, RotateCcw, LightbulbOff, AlertTriangle, FileBadge
 
 interface Props {
   data: VocabularyItem[];
+  jumpToId?: string | null;
   onExit: () => void;
   onUpdateLevel: (id: string, level: number) => void;
   onResetLevels: () => void;
@@ -138,7 +141,7 @@ const WordRow = React.memo(({
     );
 });
 
-export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onResetLevels, onShuffle, onRestore, onGetSourceName }) => {
+export const WordListMode: React.FC<Props> = ({ data, jumpToId, onExit, onUpdateLevel, onResetLevels, onShuffle, onRestore, onGetSourceName }) => {
   const [showAllDefs, setShowAllDefs] = useState(false);
   const [visibleDefs, setVisibleDefs] = useState<Set<string>>(new Set());
   
@@ -229,6 +232,17 @@ export const WordListMode: React.FC<Props> = ({ data, onExit, onUpdateLevel, onR
       
       prevIdsRef.current = currentIds;
   }, [filteredData]);
+
+  // Jump to specific word if requested
+  useEffect(() => {
+    if (jumpToId && filteredData.length > 0) {
+        const targetIndex = filteredData.findIndex(item => item.id === jumpToId);
+        if (targetIndex !== -1) {
+            setSelectedIndex(targetIndex);
+            setUsingKeyboard(true); // Force keyboard mode to trigger auto-scroll
+        }
+    }
+  }, [jumpToId, filteredData]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
       setScrollTop(e.currentTarget.scrollTop);

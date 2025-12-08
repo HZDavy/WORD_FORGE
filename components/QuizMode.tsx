@@ -7,6 +7,7 @@ import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Shuffle, RotateCcw, FileBa
 interface Props {
   data: VocabularyItem[];
   initialState?: { currentIndex: number; score: number; answeredState: Record<number, number | null>; activeLevels?: number[] };
+  jumpToId?: string | null;
   onExit: () => void;
   onShuffle: () => void;
   onRestore: () => void;
@@ -18,6 +19,7 @@ interface Props {
 export const QuizMode: React.FC<Props> = ({ 
   data, 
   initialState, 
+  jumpToId,
   onExit, 
   onShuffle, 
   onRestore, 
@@ -41,6 +43,11 @@ export const QuizMode: React.FC<Props> = ({
   const [showSource, setShowSource] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
   
+  // Jump Editing State
+  const [isEditingIndex, setIsEditingIndex] = useState(false);
+  const [editIndexInput, setEditIndexInput] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
   // Stable Options State
   const [currentOptions, setCurrentOptions] = useState<VocabularyItem[]>([]);
 
@@ -57,6 +64,18 @@ export const QuizMode: React.FC<Props> = ({
   const currentItem = quizItems[currentIndex];
   const selectedOption = answeredState[currentIndex] ?? null;
 
+  // Handle external jump request
+  useEffect(() => {
+    if (jumpToId && quizItems.length > 0) {
+        const targetIndex = quizItems.findIndex(item => item.id === jumpToId);
+        if (targetIndex !== -1) {
+            setCurrentIndex(targetIndex);
+            // Optional: clear answered state for this index if we want a fresh start, 
+            // but keeping history is usually better.
+        }
+    }
+  }, [jumpToId, quizItems]);
+
   // Reset index if it goes out of bounds when filtering changes
   useEffect(() => {
       if (currentIndex >= quizItems.length && quizItems.length > 0) {
@@ -69,6 +88,14 @@ export const QuizMode: React.FC<Props> = ({
   useEffect(() => {
     onSaveProgress({ currentIndex, score, answeredState, activeLevels: Array.from(activeLevels) });
   }, [currentIndex, score, answeredState, activeLevels, onSaveProgress]);
+
+  // Focus input when editing index
+  useEffect(() => {
+    if (isEditingIndex && editInputRef.current) {
+        editInputRef.current.focus();
+        editInputRef.current.select();
+    }
+  }, [isEditingIndex]);
 
   // Generate Stable Options only when currentItem ID changes
   useEffect(() => {
@@ -147,6 +174,28 @@ export const QuizMode: React.FC<Props> = ({
       onRestore();
   };
 
+  // --- Index Jump Logic ---
+  const handleIndexClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditIndexInput((currentIndex + 1).toString());
+      setIsEditingIndex(true);
+  };
+
+  const handleIndexSubmit = () => {
+      const val = parseInt(editIndexInput);
+      if (!isNaN(val) && val >= 1 && val <= quizItems.length) {
+          setCurrentIndex(val - 1);
+          setShowGrading(false);
+      }
+      setIsEditingIndex(false);
+  };
+
+  const handleIndexInputKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') handleIndexSubmit();
+      if (e.key === 'Escape') setIsEditingIndex(false);
+  };
+
+
   // --- Traffic Light Logic ---
   const handleLevelClick = (e: React.MouseEvent, level: number) => {
       e.stopPropagation();
@@ -207,6 +256,8 @@ export const QuizMode: React.FC<Props> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isEditingIndex) return;
+
       // Filters
       if (e.key === '`' || e.key === '~' || e.code === 'Backquote') toggleFilter(0);
       if (e.key === '1') toggleFilter(1);
@@ -265,7 +316,7 @@ export const QuizMode: React.FC<Props> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleAnswer, handleNext, handlePrev, onExit, selectedOption, showGrading, currentItem, onUpdateLevel]);
+  }, [handleAnswer, handleNext, handlePrev, onExit, selectedOption, showGrading, currentItem, onUpdateLevel, isEditingIndex]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
@@ -356,7 +407,31 @@ export const QuizMode: React.FC<Props> = ({
 
         <div>
           <span className="text-xs text-monkey-sub uppercase block mb-1">Question</span>
-          <span className="text-xl font-mono text-monkey-main">{currentIndex + 1} <span className="text-monkey-sub">/ {quizItems.length}</span></span>
+          {isEditingIndex ? (
+             <div className="flex items-center gap-2">
+                 <input 
+                    ref={editInputRef}
+                    type="number"
+                    min="1"
+                    max={quizItems.length}
+                    value={editIndexInput}
+                    onChange={(e) => setEditIndexInput(e.target.value)}
+                    onBlur={handleIndexSubmit}
+                    onKeyDown={handleIndexInputKeyDown}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-16 bg-[#3e4044] border border-monkey-main text-white font-mono text-xl text-center rounded focus:outline-none"
+                 />
+                 <span className="text-monkey-sub text-base font-mono">/ {quizItems.length}</span>
+             </div>
+          ) : (
+             <span 
+                className="text-xl font-mono text-monkey-main cursor-pointer hover:text-white transition-colors"
+                onClick={handleIndexClick}
+                title="Click to jump to question"
+             >
+                {currentIndex + 1} <span className="text-monkey-sub">/ {quizItems.length}</span>
+             </span>
+          )}
         </div>
         <div className="text-right">
              <span className="text-xs text-monkey-sub uppercase block mb-1">Score</span>
