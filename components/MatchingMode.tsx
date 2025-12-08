@@ -368,12 +368,20 @@ export const MatchingMode: React.FC<Props> = ({ data, initialRound = 0, onExit, 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center h-full pt-6 animate-game-pop-in">
       <div className="flex justify-between w-full mb-2 border-b border-monkey-sub/20 pb-2 px-4 items-center">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 relative">
+            {/* Mobile PASSED Badge - Absolute Positioned Above Title */}
+            {completedRounds.has(round) && (
+                <span className="sm:hidden absolute -top-5 left-0 border border-monkey-main text-monkey-main px-1.5 py-0.5 text-[10px] rounded font-bold animate-game-pop-in select-none bg-monkey-main/10">
+                    PASSED
+                </span>
+            )}
+
             <div className="flex items-center">
                 <span className="text-monkey-main font-bold font-mono text-lg">Round {round + 1} / {totalRounds}</span>
                 <span className="text-monkey-sub text-sm font-mono ml-4 hidden sm:inline">Select matching pairs</span>
+                {/* Desktop PASSED Badge - Inline */}
                 {completedRounds.has(round) && (
-                    <span className="ml-3 border border-monkey-main text-monkey-main px-1.5 py-0.5 text-[10px] md:text-xs rounded font-bold animate-game-pop-in select-none bg-monkey-main/10 transform -rotate-6">
+                    <span className="hidden sm:inline-block ml-3 border border-monkey-main text-monkey-main px-1.5 py-0.5 text-[10px] md:text-xs rounded font-bold animate-game-pop-in select-none bg-monkey-main/10 transform -rotate-6">
                         PASSED
                     </span>
                 )}
