@@ -130,7 +130,7 @@ export const MatchingMode: React.FC<Props> = ({
     if (bubbles.length > 0) {
         onSaveProgress(round, bubbles, Array.from(activeLevels));
     }
-  }, [round, bubbles, activeLevels, onSaveProgress]);
+  }, [round, bubbles, activeLevels, onSaveProgress, bubbles.length]);
 
   // Adjust round if filtered data shrinks
   useEffect(() => {
@@ -632,7 +632,7 @@ export const MatchingMode: React.FC<Props> = ({
         <div className="flex items-center gap-2 relative min-w-0">
             {isEditingRound ? (
                  <div className="flex items-center gap-2">
-                     <span className="text-monkey-main font-mono text-xl">Round</span>
+                     <span className="text-monkey-main font-mono text-xl hidden md:inline">Round</span>
                      <input 
                         ref={editInputRef}
                         type="number"
@@ -653,7 +653,7 @@ export const MatchingMode: React.FC<Props> = ({
                     onClick={handleRoundTextClick}
                     title="Click to jump to round"
                 >
-                    <span className="font-mono">Round {round + 1}</span>
+                    <span className="font-mono"><span className="hidden md:inline">Round </span>{round + 1}</span>
                     <span className="text-monkey-sub text-base">/ {totalRounds}</span>
                 </h2>
             )}
@@ -717,7 +717,7 @@ export const MatchingMode: React.FC<Props> = ({
           const isWord = item.type === 'word';
           
           // WRAPPER DIV: Handles Layout + Entrance Animation
-          let outerClass = "relative flex items-center justify-center ";
+          let outerClass = "relative flex items-center justify-center outline-none ring-0 ";
           
           if (item.status === 'default') {
                outerClass += " animate-pop-in ";
@@ -730,7 +730,7 @@ export const MatchingMode: React.FC<Props> = ({
           }
 
           // INNER DIV: Handles Visuals + Interaction Transforms
-          let innerClass = "w-full h-full flex items-center justify-center text-center shadow-sm rounded-xl border-2 cursor-pointer select-none ";
+          let innerClass = "w-full h-full flex items-center justify-center text-center shadow-sm rounded-xl border-2 cursor-pointer select-none outline-none ring-0 ";
           innerClass += " transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.4)] "; // Snappy spring -> Slower
           innerClass += " p-2 "; // Reduced internal padding
 
@@ -775,7 +775,10 @@ export const MatchingMode: React.FC<Props> = ({
               key={item.uid}
               className={outerClass}
               // Only apply stagger delay if we are in the initial loading phase of the round
-              style={item.status === 'default' && isRoundLoading ? { animationDelay: `${index * 30}ms` } : {}}
+              style={{
+                  WebkitTapHighlightColor: 'transparent',
+                  ...(item.status === 'default' && isRoundLoading ? { animationDelay: `${index * 30}ms` } : {})
+              }}
               onClick={(e) => {
                   e.stopPropagation();
                   setCursorIndex(index);
@@ -789,7 +792,7 @@ export const MatchingMode: React.FC<Props> = ({
               onMouseLeave={handleTouchEnd}
             >
               {/* Content Wrapper */}
-              <div className={innerClass}>
+              <div className={innerClass} style={{ WebkitTapHighlightColor: 'transparent' }}>
                 <span className={`break-words max-w-full pointer-events-none px-1`}>
                     {item.text}
                 </span>
